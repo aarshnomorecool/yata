@@ -16,6 +16,9 @@ from rich.table import Table
 from rich.align import Align
 
 from blue_agent import BlueAgent, PatchResult
+from event_log import EventLog
+from interactive_flow import run_four_step_decision
+from mutator_agent import MutatorAgent
 from red_agent import AttackPlan, RedAgent, VulnerabilityFinding
 from report_generator import ReportGenerator
 from verifier import Referee, VerificationResult
@@ -514,6 +517,7 @@ def _run_repository(
                 console.print("HEALER      → Deterministic Mode\n")
 
     referee = Referee()
+    mutator = MutatorAgent(referee)
     target_root = repository_root.resolve()
 
     project_root = Path(__file__).resolve().parent
@@ -554,6 +558,7 @@ def _run_repository(
     analysis_dir = yata_dir / "analysis" / repo_name
     logs_dir = yata_dir / "logs" / repo_name
     metadata_dir = yata_dir / "metadata" / repo_name
+    events_dir = yata_dir / "events" / repo_name
 
     yata_dir.mkdir(exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -561,6 +566,11 @@ def _run_repository(
     analysis_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
     metadata_dir.mkdir(parents=True, exist_ok=True)
+    events_dir.mkdir(parents=True, exist_ok=True)
+
+    event_log = EventLog(events_dir / "events.jsonl")
+    event_log.reset()
+    event_log.write("run_started", repository=repo_name, mode=mode)
 
     metadata_file = metadata_dir / "metadata.json"
     metadata_content = {
@@ -668,105 +678,175 @@ def _run_repository(
                 console.print(f"Location: {_clean_path(finding.metadata.get('relative_file', finding.affected_file))}:{finding.line_number}")
                 console.print(f"Severity: {severity}")
 
-        if verbose:
-            console.print("[bold blue][HEALER][/bold blue] Generating secure patch...")
+        aborted_by_user = False
+        relative_file = str(finding.metadata.get("relative_file", finding.affected_file))
 
-        start_patch = time.time()
-        patch_result = blue_agent.generate_patch(current_root, finding)
-        t_healer_patch += time.time() - start_patch
-        patches_generated += 1
-        try:
-            rel_file = Path(patch_result.patched_file).relative_to(patch_result.patched_root)
-        except ValueError:
-            rel_file = Path(patch_result.patched_file).name
-        rel_patch_path = _clean_path(patches_dir / rel_file)
-        if verbose:
-            console.print(f" └─ Patch written → {rel_patch_path}")
-        else:
-            if not multi_repo:
-                console.print()
-                console.print("HEALER      [bold green]✓[/bold green] Patch Generated\n")
+        if mode == "interactive":
+            outcome = run_four_step_decision(
+                console=console,
+                event_log=event_log,
+                blue_agent=blue_agent,
+                referee=referee,
+                mutator=mutator,
+                finding=finding,
+                attack_plan=attack_plan,
+                vulnerable_check=vulnerable_check,
+                current_root=current_root,
+                round_number=round_number,
+            )
+            human_interventions += 1
+            if outcome.patch_result is not None:
+                patches_generated += outcome.retries_used + 1
 
-        if verbose:
-            if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
-                print("[VALIDATOR]")
+            if outcome.decision == "abort":
+                all_findings[_finding_key(finding)]["status"] = "aborted"
+                remaining_findings = findings
+                battle_status = "stalled"
+                termination_reason = "Assessment aborted by user."
+                aborted_by_user = True
             else:
-                console.print("[bold cyan][VALIDATOR][/bold cyan] Attacking patched code...")
+                patch_result = outcome.patch_result
+                patched_check = outcome.patched_check or VerificationResult(
+                    attack_succeeded=True,
+                    status_code=0,
+                    response_text="",
+                    evidence="Patch rejected by user before validation.",
+                )
+                patch_succeeded = outcome.decision == "apply"
+                status_map = {"apply": "patched", "reject": "rejected", "skip": "skipped_unresolved"}
+                all_findings[_finding_key(finding)]["status"] = status_map[outcome.decision]
 
-        start_verify = time.time()
-        patched_check = referee.verify_exploit(patch_result.patched_root, finding, attack_plan.payload)
-        t_validator_verification += time.time() - start_verify
-        patch_succeeded = not patched_check.attack_succeeded
+                for relative_path in patch_result.changed_files:
+                    relative = Path(relative_path)
+                    source_path = patch_result.patched_root / relative
+                    destination_path = patches_dir / relative
+                    destination_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source_path, destination_path)
 
-        if verbose:
-            if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
                 if patch_succeeded:
-                    print("Exploit blocked.\n")
-                    print("Patch verified.")
+                    healed_count += 1
+                    _apply_patch_to_original(target_root, patch_result)
+                    current_root = target_root
+                    patch_applied = True
+
+                    start_disc = time.time()
+                    remaining_findings = red_agent.scan(current_root)
+                    t_hunter_discovery += time.time() - start_disc
+                    for next_finding in remaining_findings:
+                        discovered_findings.add(_finding_key(next_finding))
+
+                    score_after_apply = referee.calculate_security_score(remaining_findings)
+                    console.print(Panel(
+                        f"[bold white]STEP 4 / 4 -- Applied[/bold white]\n\n"
+                        f"[bold]File updated:[/bold] {relative_file}\n"
+                        f"[bold]Backup:[/bold] {_clean_path(patches_dir)}\n"
+                        f"[bold]Security score:[/bold] {score_before} -> {score_after_apply}",
+                        border_style="green", expand=True,
+                    ))
+                    event_log.write(
+                        "step_shown", step=4, name="applied", round=round_number,
+                        backup=str(patches_dir), score_before=score_before, score_after=score_after_apply,
+                    )
                 else:
-                    print("Exploit succeeded.\n")
-                    print("Patch failed.")
-            else:
-                if patch_succeeded:
-                    console.print(" └─ Exploit blocked ✓")
-                    console.print("[bold blue][HEALER][/bold blue] Patch verified.\n")
+                    remaining_findings = findings
+                    battle_status = "stalled"
+                    termination_reason = {
+                        "reject": "Patch rejected by user.",
+                        "skip": "Finding skipped for manual review after failed re-attack.",
+                    }[outcome.decision]
         else:
-            if not multi_repo:
-                if patch_succeeded:
-                    val_msg = "Secret Externalized" if finding.vulnerability_type == "Hardcoded Secret" else "Exploit Blocked"
-                    console.print(f"VALIDATOR   [bold green]✓[/bold green] {val_msg}\n")
+            if verbose:
+                console.print("[bold blue][HEALER][/bold blue] Generating secure patch...")
+
+            start_patch = time.time()
+            patch_result = blue_agent.generate_patch(current_root, finding)
+            t_healer_patch += time.time() - start_patch
+            patches_generated += 1
+            try:
+                rel_file = Path(patch_result.patched_file).relative_to(patch_result.patched_root)
+            except ValueError:
+                rel_file = Path(patch_result.patched_file).name
+            rel_patch_path = _clean_path(patches_dir / rel_file)
+            if verbose:
+                console.print(f" └─ Patch written → {rel_patch_path}")
+            else:
+                if not multi_repo:
+                    console.print()
+                    console.print("HEALER      [bold green]✓[/bold green] Patch Generated\n")
+
+            if verbose:
+                if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
+                    print("[VALIDATOR]")
                 else:
-                    console.print("VALIDATOR   [bold red]✗[/bold red] Exploit Succeeded\n")
+                    console.print("[bold cyan][VALIDATOR][/bold cyan] Attacking patched code...")
 
-        if patch_succeeded:
-            healed_count += 1
-            all_findings[_finding_key(finding)]["status"] = "patched"
+            start_verify = time.time()
+            patched_check = referee.verify_exploit(patch_result.patched_root, finding, attack_plan.payload)
+            t_validator_verification += time.time() - start_verify
+            patch_succeeded = not patched_check.attack_succeeded
 
-            for relative_path in patch_result.changed_files:
-                relative = Path(relative_path)
-                source_path = patch_result.patched_root / relative
-                destination_path = patches_dir / relative
-                destination_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source_path, destination_path)
-
-            apply_verified = False
-            if mode == "apply":
-                apply_verified = True
-            elif mode == "interactive":
-                console.print()
-                human_interventions += 1
-                try:
-                    response = input("Apply verified patch to original repository? [Y/N]: ").strip().upper()
-                except (KeyboardInterrupt, EOFError):
-                    response = "N"
-                if response in ("Y", "YES"):
-                    apply_verified = True
-
-            if apply_verified:
-                if verbose:
-                    console.print("[bold cyan][YATA][/bold cyan] Applying verified patch to original repository...\n")
-                _apply_patch_to_original(target_root, patch_result)
-                current_root = target_root
-                patch_applied = True
-                if verbose:
-                    console.print("[bold cyan][YATA][/bold cyan] Repository healed successfully.")
+            if verbose:
+                if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
+                    if patch_succeeded:
+                        print("Exploit blocked.\n")
+                        print("Patch verified.")
+                    else:
+                        print("Exploit succeeded.\n")
+                        print("Patch failed.")
+                else:
+                    if patch_succeeded:
+                        console.print(" └─ Exploit blocked ✓")
+                        console.print("[bold blue][HEALER][/bold blue] Patch verified.\n")
             else:
-                current_root = patch_result.patched_root
+                if not multi_repo:
+                    if patch_succeeded:
+                        val_msg = "Secret Externalized" if finding.vulnerability_type == "Hardcoded Secret" else "Exploit Blocked"
+                        console.print(f"VALIDATOR   [bold green]✓[/bold green] {val_msg}\n")
+                    else:
+                        console.print("VALIDATOR   [bold red]✗[/bold red] Exploit Succeeded\n")
 
-            start_disc = time.time()
-            remaining_findings = red_agent.scan(current_root)
-            t_hunter_discovery += time.time() - start_disc
-            for next_finding in remaining_findings:
-                discovered_findings.add(_finding_key(next_finding))
-            if verbose and LLMClient.execution_mode not in ("autonomous_fallback", "demo"):
-                console.print("[bold green][VALIDATOR][/bold green] Patch verification successful. Changes promoted.")
-        else:
-            remaining_findings = findings
-            battle_status = "stalled"
-            termination_reason = "The patched copy still allowed the exploit."
-            if verbose and LLMClient.execution_mode not in ("autonomous_fallback", "demo"):
-                console.print(" └─ Exploit succeeded ✗")
-                console.print("[bold red][VALIDATOR][/bold red] Patch verification failed. Exploit bypass found.")
+            if patch_succeeded:
+                healed_count += 1
+                all_findings[_finding_key(finding)]["status"] = "patched"
+
+                for relative_path in patch_result.changed_files:
+                    relative = Path(relative_path)
+                    source_path = patch_result.patched_root / relative
+                    destination_path = patches_dir / relative
+                    destination_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source_path, destination_path)
+
+                apply_verified = mode == "apply"
+
+                if apply_verified:
+                    if verbose:
+                        console.print("[bold cyan][YATA][/bold cyan] Applying verified patch to original repository...\n")
+                    _apply_patch_to_original(target_root, patch_result)
+                    current_root = target_root
+                    patch_applied = True
+                    if verbose:
+                        console.print("[bold cyan][YATA][/bold cyan] Repository healed successfully.")
+                else:
+                    current_root = patch_result.patched_root
+
+                start_disc = time.time()
+                remaining_findings = red_agent.scan(current_root)
+                t_hunter_discovery += time.time() - start_disc
+                for next_finding in remaining_findings:
+                    discovered_findings.add(_finding_key(next_finding))
+                if verbose and LLMClient.execution_mode not in ("autonomous_fallback", "demo"):
+                    console.print("[bold green][VALIDATOR][/bold green] Patch verification successful. Changes promoted.")
+            else:
+                remaining_findings = findings
+                battle_status = "stalled"
+                termination_reason = "The patched copy still allowed the exploit."
+                if verbose and LLMClient.execution_mode not in ("autonomous_fallback", "demo"):
+                    console.print(" └─ Exploit succeeded ✗")
+                    console.print("[bold red][VALIDATOR][/bold red] Patch verification failed. Exploit bypass found.")
+
+        if aborted_by_user:
+            event_log.write("run_aborted", round=round_number)
+            break
 
         score_after = referee.calculate_security_score(remaining_findings)
         round_score = referee.record_round(
