@@ -559,6 +559,7 @@ def _run_repository(
     logs_dir = yata_dir / "logs" / repo_name
     metadata_dir = yata_dir / "metadata" / repo_name
     events_dir = yata_dir / "events" / repo_name
+    repo_map_dir = yata_dir / "repo_map" / repo_name
 
     yata_dir.mkdir(exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -567,6 +568,7 @@ def _run_repository(
     logs_dir.mkdir(parents=True, exist_ok=True)
     metadata_dir.mkdir(parents=True, exist_ok=True)
     events_dir.mkdir(parents=True, exist_ok=True)
+    repo_map_dir.mkdir(parents=True, exist_ok=True)
 
     event_log = EventLog(events_dir / "events.jsonl")
     event_log.reset()
@@ -612,6 +614,7 @@ def _run_repository(
         start_disc = time.time()
         findings = red_agent.scan(current_root)
         t_hunter_discovery += time.time() - start_disc
+        _write_repo_map(red_agent, repo_map_dir)
 
         for finding in findings:
             discovered_findings.add(_finding_key(finding))
@@ -732,6 +735,7 @@ def _run_repository(
                     start_disc = time.time()
                     remaining_findings = red_agent.scan(current_root)
                     t_hunter_discovery += time.time() - start_disc
+                    _write_repo_map(red_agent, repo_map_dir)
                     for next_finding in remaining_findings:
                         discovered_findings.add(_finding_key(next_finding))
 
@@ -832,6 +836,7 @@ def _run_repository(
                 start_disc = time.time()
                 remaining_findings = red_agent.scan(current_root)
                 t_hunter_discovery += time.time() - start_disc
+                _write_repo_map(red_agent, repo_map_dir)
                 for next_finding in remaining_findings:
                     discovered_findings.add(_finding_key(next_finding))
                 if verbose and LLMClient.execution_mode not in ("autonomous_fallback", "demo"):
@@ -884,6 +889,7 @@ def _run_repository(
         start_disc = time.time()
         remaining_findings = red_agent.scan(current_root)
         t_hunter_discovery += time.time() - start_disc
+        _write_repo_map(red_agent, repo_map_dir)
         for finding in remaining_findings:
             discovered_findings.add(_finding_key(finding))
         battle_status = "max_rounds_reached"
@@ -1159,6 +1165,11 @@ def _select_verified_attack(
         if verbose:
             console.print("[bold yellow][VALIDATOR][/bold yellow] Weakness could not be exploited. Continuing search.")
     return None
+
+
+def _write_repo_map(red_agent: RedAgent, repo_map_dir: Path) -> None:
+    repo_map_file = repo_map_dir / "repo_map.json"
+    repo_map_file.write_text(json.dumps(red_agent.repo_map, indent=2), encoding="utf-8")
 
 
 def _apply_patch_to_original(target_root: Path, patch_result: PatchResult) -> None:

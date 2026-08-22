@@ -701,6 +701,59 @@ class PathTraversalDetector(VulnerabilityDetector):
         return False
 
 
+_ENTRY_POINT_NAMES = {"app.py", "main.py", "wsgi.py"}
+_CONFIG_NAME_PATTERN = re.compile(r"config|secret|settings", re.IGNORECASE)
+_SECRET_ASSIGNMENT_PATTERN = re.compile(r"\b[A-Z_]*(SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=")
+_DB_CONNECTION_PATTERN = re.compile(r"sqlite3\.connect|\.cursor\(\)|psycopg2\.connect|pymysql\.connect")
+
+
+def _extract_repo_map_imports(tree: ast.AST) -> list[str]:
+    imports: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.append(node.module)
+    # de-duplicate, keep first-seen order
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for name in imports:
+        if name not in seen:
+            seen.add(name)
+            ordered.append(name)
+    return ordered
+
+
+def _has_route_decorator(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if isinstance(target, ast.Attribute) and target.attr == "route":
+                return True
+    return False
+
+
+def _has_class_definition(tree: ast.AST) -> bool:
+    return any(isinstance(node, ast.ClassDef) for node in ast.walk(tree))
+
+
+def _classify_building(filename: str, tree: ast.AST, source_text: str) -> str:
+    if filename in _ENTRY_POINT_NAMES:
+        return "Townhall"
+    if _has_route_decorator(tree):
+        return "Market Stall"
+    if _DB_CONNECTION_PATTERN.search(source_text):
+        return "The Vault"
+    if _CONFIG_NAME_PATTERN.search(filename) or _SECRET_ASSIGNMENT_PATTERN.search(source_text):
+        return "Strongbox"
+    if _has_class_definition(tree):
+        return "Guild Hall"
+    return "House"
+
+
 class RedAgent:
     def __init__(
         self,
@@ -712,10 +765,12 @@ class RedAgent:
         self.detectors = detectors or [SQLInjectionDetector(), HardcodedSecretDetector(), CommandInjectionDetector(), PathTraversalDetector()]
         self.attack_library = AttackLibrary()
         self.verbose = False
+        self.repo_map: list[dict[str, object]] = []
 
     def scan(self, target_root: Path) -> list[VulnerabilityFinding]:
         target_root = target_root.resolve()
         findings: list[VulnerabilityFinding] = []
+        repo_map: list[dict[str, object]] = []
         for source_file in target_root.rglob("*.py"):
             if any(part in (".yata", ".git", ".venv", "__pycache__") for part in source_file.parts):
                 continue
@@ -724,7 +779,27 @@ class RedAgent:
                 for finding in detector_findings:
                     finding.metadata.setdefault("relative_file", str(source_file.relative_to(target_root)))
                 findings.extend(detector_findings)
+
+            repo_map_entry = self._build_repo_map_entry(source_file, target_root)
+            if repo_map_entry is not None:
+                repo_map.append(repo_map_entry)
+
+        self.repo_map = repo_map
         return self.prioritize(findings)
+
+    def _build_repo_map_entry(self, source_file: Path, target_root: Path) -> dict[str, object] | None:
+        try:
+            source_text = source_file.read_text(encoding="utf-8")
+            tree = ast.parse(source_text)
+        except Exception:
+            return None
+
+        return {
+            "filename": str(source_file.relative_to(target_root)),
+            "building_type": _classify_building(source_file.name, tree, source_text),
+            "size": len(source_text.splitlines()),
+            "imports": _extract_repo_map_imports(tree),
+        }
 
     def prioritize(self, findings: list[VulnerabilityFinding]) -> list[VulnerabilityFinding]:
         severity_order = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
