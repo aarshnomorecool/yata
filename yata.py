@@ -424,9 +424,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
              "patching them destroys the demo.",
     )
     assess_parser.add_argument(
-        "--ui", choices=["terminal", "game"], default="terminal",
-        help="terminal (default): terminal owns input, a separately-opened `yata game` view only mirrors. "
-             "game: opens a browser game view; in --interactive mode that view owns the four-step decisions.",
+        "--ui", choices=["terminal", "game", "canvas"], default="terminal",
+        help="terminal (default): terminal owns input. game: opens the live dungeon dashboard "
+             "(bhenga-main live.html) driven by SSE. canvas: the Phaser event-log renderer, which "
+             "in --interactive mode owns the four-step decisions.",
     )
 
     # 2. discover
@@ -602,7 +603,12 @@ def _run_repository(
     event_log.write("run_started", repository=repo_name, mode=mode)
 
     game_bridge = None
+    dashboard = None
     if ui == "game":
+        # The shared bhenga-main dashboard: live.html drives itself off SSE.
+        dashboard = _start_live_dashboard(console, repo_name)
+        time.sleep(1.2)   # give the browser a moment to attach to /stream
+    elif ui == "canvas":
         game_bridge = _start_game_view(console, project_root, repo_name, owns_input=(mode == "interactive"))
 
     metadata_file = metadata_dir / "metadata.json"
@@ -713,6 +719,7 @@ def _run_repository(
                 console.print(f"Severity: {severity}")
 
         aborted_by_user = False
+        battery_summary = "n/a"
         relative_file = str(finding.metadata.get("relative_file", finding.affected_file))
 
         event_log.write(
@@ -721,6 +728,21 @@ def _run_repository(
             line_number=finding.line_number, payload=attack_plan.payload,
             severity=severity,
         )
+
+        tier = {"SQL Injection": 3, "Command Injection": 2}.get(finding.vulnerability_type, 1)
+        _emit(dashboard, "repo_map", red_agent.repo_map)
+        _emit(dashboard, "spawn_monster", {
+            "tier": tier, "vuln": finding.vulnerability_type,
+            "severity": severity, "file": relative_file,
+        })
+        _emit(dashboard, "agent_action", {
+            "agent": "hunter", "action": "shoot",
+            "message": f"Testing payloads for {finding.vulnerability_type}...",
+        })
+        _emit(dashboard, "workflow_step", {
+            "step": 1, "finding": finding.vulnerability_type, "file": relative_file,
+            "line": finding.line_number, "payload": attack_plan.payload, "result": "Exploitable",
+        })
 
         if mode == "interactive":
             outcome = run_four_step_decision(
@@ -737,6 +759,8 @@ def _run_repository(
                 get_choice=game_bridge.request_choice if game_bridge else None,
             )
             human_interventions += 1
+            if outcome.battery is not None:
+                battery_summary = f"{outcome.battery.blocked_count}/{outcome.battery.total}"
             if outcome.patch_result is not None:
                 patches_generated += outcome.retries_used + 1
 
@@ -838,6 +862,15 @@ def _run_repository(
             t_validator_verification += time.time() - start_verify
             patch_succeeded = not patched_check.attack_succeeded
 
+            # MUTATOR also runs outside interactive mode, so safe/apply runs
+            # report a real battery result rather than skipping re-attack.
+            if patch_succeeded and mutator.get_battery(finding.vulnerability_type):
+                battery = mutator.run_battery(patch_result.patched_root, finding)
+                battery_summary = f"{battery.blocked_count}/{battery.total}"
+                if not battery.all_blocked:
+                    patch_succeeded = False
+                    patched_check = battery.bypasses[0].verification
+
             if verbose:
                 if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
                     if patch_succeeded:
@@ -909,6 +942,28 @@ def _run_repository(
             break
 
         event_log.write("patch_outcome", round=round_number, file=relative_file, succeeded=patch_succeeded)
+
+        _emit(dashboard, "agent_action", {
+            "agent": "healer", "action": "spellcast",
+            "message": f"Generating secure patch for {finding.vulnerability_type}...",
+        })
+        _emit(dashboard, "workflow_step", {
+            "step": 2,
+            "strategy": "Pattern-based" if getattr(patch_result, "used_llm", False) else "Structural",
+            "diff": patch_result.patch_text,
+        })
+        _emit(dashboard, "agent_action", {
+            "agent": "validator", "action": "slash",
+            "message": f"Verifying patched {finding.vulnerability_type}...",
+        })
+        _emit(dashboard, "workflow_step", {
+            "step": 3, "passed": patch_succeeded, "battery": battery_summary,
+        })
+        if patch_succeeded:
+            _emit(dashboard, "monster_defeated", {"vuln": finding.vulnerability_type})
+            _emit(dashboard, "workflow_step", {"step": 4})
+        else:
+            _emit(dashboard, "monster_hit", {"vuln": finding.vulnerability_type})
 
         score_after = referee.calculate_security_score(remaining_findings)
         round_score = referee.record_round(
@@ -1222,6 +1277,38 @@ def _select_verified_attack(
         if verbose:
             console.print("[bold yellow][VALIDATOR][/bold yellow] Weakness could not be exploited. Continuing search.")
     return None
+
+
+def _emit(dashboard, event_type: str, data: dict | list | None = None) -> None:
+    """Push an event to the live dashboard, if one is running."""
+    if dashboard is not None:
+        dashboard.emit(event_type, data)
+
+
+def _start_live_dashboard(console: Console, repo_name: str):
+    """Start the bhenga-main live dashboard (templates/live.html verbatim)."""
+    import socket
+    import webbrowser
+
+    from game_live import dashboard
+
+    port = 5050
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        if probe.connect_ex(("127.0.0.1", port)) == 0:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as free_probe:
+                free_probe.bind(("127.0.0.1", 0))
+                port = free_probe.getsockname()[1]
+
+    url = dashboard.start_dashboard(port)
+    console.print(Panel(
+        f"[bold magenta]Live dashboard:[/bold magenta] {url}\n[dim]repository: {repo_name}[/dim]",
+        border_style="magenta", expand=True,
+    ))
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+    return dashboard
 
 
 def _start_game_view(console: Console, project_root: Path, repo_name: str, *, owns_input: bool):
