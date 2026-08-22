@@ -4,60 +4,121 @@
 <meta charset="utf-8">
 <title>YATA -- {{ repo_name }}</title>
 <style>
-  html, body { margin: 0; padding: 0; background: #14100c; color: #e8dcc4; font-family: "Trebuchet MS", sans-serif; }
-  #header { padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; background: #1f1710; border-bottom: 2px solid #4a3620; }
-  #header h1 { font-size: 16px; margin: 0; }
-  #badge { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-  #badge.owner { background: #3b6b2f; color: #d7ffbf; }
-  #badge.readonly { background: #55483a; color: #e8dcc4; }
-  #game-root { width: 100vw; height: calc(100vh - 40px); }
-  #log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 120px; overflow-y: auto; background: rgba(20,16,12,0.85); font-size: 12px; padding: 4px 10px; border-top: 1px solid #4a3620; }
-  #log div { padding: 1px 0; }
-  #parchment-overlay {
-    display: none;
-    position: fixed;
-    top: 15%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(520px, 80vw);
-    min-height: 220px;
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    color: #2b1d0e;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 40px;
-    box-sizing: border-box;
-    text-align: center;
-    z-index: 10;
+  :root {
+    --gold: #f0c246;
+    --ink: #0d0a07;
+    --parch: #e8dcc4;
+    --panel: rgba(18, 12, 8, 0.88);
+    --edge: #7a5a2a;
   }
-  #parchment-message { font-size: 15px; font-weight: bold; line-height: 1.4; margin-bottom: 18px; }
+  html, body { margin: 0; padding: 0; background: #0d0a07; color: var(--parch);
+    font-family: "Courier New", monospace; overflow: hidden; }
+  #game-root { position: fixed; inset: 0; }
+
+  /* ---- HUD overlay. Pointer-events off except on real controls, so the
+         Phaser world underneath stays pannable. ---- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel {
+    background: var(--panel);
+    border: 2px solid var(--edge);
+    box-shadow: 0 0 0 1px #000, 0 4px 14px rgba(0,0,0,.6);
+  }
+  .panel-title {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--gold);
+    padding: 6px 10px; border-bottom: 1px solid rgba(122,90,42,.5);
+  }
+
+  #guild-badge { position: absolute; top: 12px; left: 14px; width: 300px; pointer-events: auto; cursor: pointer; }
+  #guild-badge .sub { font-size: 9px; color: #a08f6d; padding: 5px 10px; letter-spacing: .5px; }
+
+  #threats { position: absolute; top: 78px; left: 14px; width: 300px; max-height: 44vh; overflow-y: auto; }
+  #threat-list { padding: 4px 0 6px; }
+  .threat { padding: 5px 10px 6px 12px; border-left: 3px solid #b23b3b; margin: 4px 8px; background: rgba(60,20,20,.35); }
+  .threat.healed { border-left-color: #4f9e4f; background: rgba(20,50,20,.3); opacity: .72; }
+  .threat .name { font-size: 12px; color: #ff8a7a; }
+  .threat.healed .name { color: #90e08a; text-decoration: line-through; }
+  .threat .meta { font-size: 9px; color: #a08f6d; margin-top: 2px; }
+  .empty { font-size: 10px; color: #7d6f57; padding: 10px; text-align: center; }
+
+  #xp-wrap { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 340px; text-align: center; }
+  #xp-label { font-size: 9px; color: var(--gold); letter-spacing: 1.5px; }
+  #xp-bar { height: 14px; background: #2a1d10; border: 2px solid var(--edge); margin-top: 3px; position: relative; }
+  #xp-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#8a5a18,#f0c246); transition: width .5s ease; }
+  #xp-text { position: absolute; inset: 0; font-size: 9px; line-height: 14px; color: #fff; text-shadow: 0 1px 2px #000; }
+
+  #counters { position: absolute; top: 12px; right: 14px; display: flex; gap: 8px; align-items: flex-start; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; color: var(--parch); }
+  .chip img { width: 16px; height: 16px; image-rendering: pixelated; }
+  #dossier { pointer-events: auto; cursor: pointer; color: var(--gold); font-size: 11px; padding: 7px 12px; letter-spacing: 1px; }
+
+  #minimap-wrap { position: absolute; top: 76px; right: 14px; width: 190px; }
+  #minimap { display: block; width: 186px; height: 104px; background: #05060c; }
+
+  #log { position: absolute; bottom: 10px; right: 14px; width: 330px; max-height: 130px; overflow-y: auto;
+    font-size: 10px; line-height: 1.45; padding: 6px 9px; }
+  #log div { padding: 1px 0; color: #cbb98f; }
+  #log div.hl { color: var(--gold); }
+
+  #mode-badge { position: absolute; bottom: 10px; left: 14px; font-size: 10px; padding: 6px 10px; letter-spacing: 1px; }
+  #mode-badge.owner { color: #a6e08a; border-color: #3f6f2f; }
+  #mode-badge.readonly { color: #a08f6d; }
+
+  /* ---- Parchment decision overlay ---- */
+  #parchment-overlay {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: min(560px, 84vw); min-height: 240px; background-size: 100% 100%; background-repeat: no-repeat;
+    color: #2b1d0e; flex-direction: column; align-items: center; justify-content: center;
+    padding: 54px 46px; box-sizing: border-box; text-align: center; z-index: 20; pointer-events: auto;
+  }
+  #parchment-message { font-size: 15px; font-weight: bold; line-height: 1.45; margin-bottom: 18px; }
   #parchment-choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   #parchment-choices button {
-    font-family: "Trebuchet MS", sans-serif;
-    font-size: 13px;
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: 2px solid #6b4a24;
-    background: #d9c79b;
-    color: #2b1d0e;
-    cursor: pointer;
+    font-family: "Courier New", monospace; font-size: 13px; padding: 9px 16px;
+    border-radius: 3px; border: 2px solid #6b4a24; background: #d9c79b; color: #2b1d0e; cursor: pointer;
   }
-  #parchment-choices button:hover { background: #eadcb5; }
+  #parchment-choices button:hover { background: #efe0b6; }
 </style>
 </head>
 <body>
-<div id="header">
-  <h1>YATA -- {{ repo_name }}</h1>
-  <span id="badge" class="{{ 'owner' if owner else 'readonly' }}">{{ 'GAMER MODE -- this view decides' if owner else 'DEVELOPER MODE -- read-only mirror' }}</span>
-</div>
 <div id="game-root"></div>
-<div id="log"></div>
+
+<div id="hud">
+  <div id="guild-badge" class="panel">
+    <div class="panel-title">&#9670; GUILD HALL &nbsp;(<span id="guild-level">LV.1</span>)</div>
+    <div class="sub">{{ repo_name }} &mdash; CLICK TO INSPECT VULNERABILITIES</div>
+  </div>
+
+  <div id="threats" class="panel">
+    <div class="panel-title">GUILD THREAT RAIDS</div>
+    <div id="threat-list"><div class="empty">No threats confirmed yet.</div></div>
+  </div>
+
+  <div id="xp-wrap">
+    <div id="xp-label">LEVEL <span id="xp-level">1</span> GUILD</div>
+    <div id="xp-bar"><div id="xp-fill"></div><div id="xp-text">0 / 0 XP</div></div>
+  </div>
+
+  <div id="counters">
+    <div class="chip panel"><img id="icon-xp" alt=""><span id="stat-xp">0</span></div>
+    <div class="chip panel"><img id="icon-heal" alt=""><span id="stat-healed">0/0</span></div>
+    <div class="chip panel"><img id="icon-shield" alt=""><span id="stat-score">--</span></div>
+    <div id="dossier" class="panel">DOSSIER</div>
+  </div>
+
+  <div id="minimap-wrap" class="panel">
+    <div class="panel-title">MAP</div>
+    <canvas id="minimap" width="186" height="104"></canvas>
+  </div>
+
+  <div id="log" class="panel"></div>
+  <div id="mode-badge" class="panel {{ 'owner' if owner else 'readonly' }}">{{ 'GAMER MODE -- THIS VIEW DECIDES' if owner else 'DEVELOPER MODE -- READ-ONLY MIRROR' }}</div>
+</div>
+
 <div id="parchment-overlay">
   <div id="parchment-message"></div>
   <div id="parchment-choices"></div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
 <script>
   window.YATA_OWNER = {{ 'true' if owner else 'false' }};

@@ -7,6 +7,7 @@ from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from game.bridge import GameBridge
 from game.layout import build_import_edges, build_village_layout
+from verifier import Referee
 
 TIER_MAP = {
     "SQL Injection": "demon",
@@ -14,6 +15,10 @@ TIER_MAP = {
     "Hardcoded Secret": "imp",
     "Path Traversal": "imp",
 }
+
+# The HUD's XP/bounty numbers are derived from VALIDATOR's real RISK_WEIGHTS,
+# never invented, so what the game shows still traces back to actual state.
+XP_PER_RISK_POINT = 4
 
 
 def create_game_app(*, project_root: Path, repo_name: str, bridge: GameBridge | None = None) -> Flask:
@@ -80,6 +85,8 @@ def create_game_app(*, project_root: Path, repo_name: str, bridge: GameBridge | 
                 "edges": edges,
                 "pending": pending,
                 "tier_map": TIER_MAP,
+                "risk_weights": Referee.RISK_WEIGHTS,
+                "xp_per_risk_point": XP_PER_RISK_POINT,
             }
         )
 
