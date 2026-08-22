@@ -1,8 +1,9 @@
 import json
 import queue
 import threading
+import time
 import logging
-from flask import Flask, render_template, Response, send_from_directory
+from flask import Flask, render_template, Response, request, jsonify, send_from_directory
 from pathlib import Path
 
 # Disable Flask startup logs
@@ -10,6 +11,14 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 event_queue = queue.Queue()
+
+# Decision bridge: request_decision() blocks the assess thread until the
+# browser POSTs an answer to /api/decision. Only one decision is ever
+# pending at a time, matching the terminal's own one-question-at-a-time
+# input() flow it stands in for.
+_pending_decision = None
+_decision_answer = None
+_decision_lock = threading.Lock()
 
 # Setup paths relative to this file
 BASE_DIR = Path(__file__).resolve().parent
@@ -52,8 +61,42 @@ def serve_dragon_anim(anim_type, filename):
 LAST_REPO_MAP = []
 @app.route('/api/repo_map')
 def api_repo_map():
-    from flask import jsonify
     return jsonify(LAST_REPO_MAP)
+
+@app.route('/api/decision', methods=['POST'])
+def api_decision():
+    global _decision_answer
+    payload = request.get_json(silent=True) or {}
+    choice = payload.get('choice')
+    with _decision_lock:
+        if _pending_decision is None or not choice:
+            return jsonify({"ok": False, "error": "no pending decision"}), 409
+        _decision_answer = choice
+    return jsonify({"ok": True})
+
+def request_decision(message, timeout=600):
+    """Emit a decision prompt to the browser and block until it answers.
+
+    Mirrors the terminal's own input() prompt: one question, blocking,
+    answered once. Returns the raw choice string ('yes'/'no'), or None if
+    it timed out (treated as a safe "no").
+    """
+    global _pending_decision, _decision_answer
+    with _decision_lock:
+        _pending_decision = {"message": message}
+        _decision_answer = None
+    emit("decision_required", {"message": message})
+    start = time.time()
+    while _decision_answer is None:
+        if time.time() - start > timeout:
+            with _decision_lock:
+                _pending_decision = None
+            return None
+        time.sleep(0.15)
+    with _decision_lock:
+        answer = _decision_answer
+        _pending_decision = None
+    return answer
 
 @app.route('/stream')
 def stream():

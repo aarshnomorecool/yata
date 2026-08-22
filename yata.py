@@ -750,8 +750,33 @@ def _run_repository(
         t_validator_verification += time.time() - start_verify
         patch_succeeded = not patched_check.attack_succeeded
 
-        if dashboard and patch_succeeded:
-            dashboard.emit("monster_defeated", {"vuln": finding.vulnerability_type})
+        if dashboard:
+            if patch_succeeded:
+                # MUTATOR: a real secondary check, live-mode only. Tries the
+                # rest of AttackLibrary's payloads for this vulnerability
+                # class against the same patch. It never changes
+                # patch_succeeded/healed_count/apply below -- it is an
+                # honest extra signal shown in the dashboard, not a second
+                # gate on the terminal's own pass/fail contract.
+                mutator_bypass = None
+                battery_payloads = [p for p in red_agent.get_payloads_for_finding(finding) if p != attack_plan.payload]
+                if battery_payloads:
+                    dashboard.emit("agent_action", {
+                        "agent": "mutator",
+                        "action": "mutate",
+                        "message": f"A goblin slips in and mutates the {finding.vulnerability_type} payload...",
+                    })
+                    for alt_payload in battery_payloads[:3]:
+                        alt_check = referee.verify_exploit(patch_result.patched_root, finding, alt_payload)
+                        if alt_check.attack_succeeded:
+                            mutator_bypass = alt_payload
+                            break
+                if mutator_bypass:
+                    dashboard.emit("monster_mutated", {"vuln": finding.vulnerability_type, "payload": mutator_bypass})
+                else:
+                    dashboard.emit("monster_defeated", {"vuln": finding.vulnerability_type})
+            else:
+                dashboard.emit("monster_still_alive", {"vuln": finding.vulnerability_type})
 
         if verbose:
             if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
@@ -790,10 +815,18 @@ def _run_repository(
             elif mode == "interactive":
                 console.print()
                 human_interventions += 1
-                try:
-                    response = input("Apply verified patch to original repository? [Y/N]: ").strip().upper()
-                except (KeyboardInterrupt, EOFError):
-                    response = "N"
+                if dashboard:
+                    console.print("[dim]Awaiting approval on the Guild Hall scroll in the browser...[/dim]")
+                    answer = dashboard.request_decision(
+                        f"A verified patch for {finding.vulnerability_type} in "
+                        f"{rel_file} is ready. Apply it to the repository?"
+                    )
+                    response = "Y" if answer == "yes" else "N"
+                else:
+                    try:
+                        response = input("Apply verified patch to original repository? [Y/N]: ").strip().upper()
+                    except (KeyboardInterrupt, EOFError):
+                        response = "N"
                 if response in ("Y", "YES"):
                     apply_verified = True
 

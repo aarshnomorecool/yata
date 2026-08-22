@@ -390,6 +390,56 @@
             80% { opacity: 1; transform: translateY(-35px) scale(1); }
             100% { opacity: 0; transform: translateY(-55px) scale(0.9); }
         }
+
+        /* Top Notification Banner */
+        #top-notification-banner {
+            position: fixed;
+            top: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1200;
+            pointer-events: none;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 24px;
+            background: rgba(15, 10, 6, 0.96);
+            border: 3px solid var(--guild-gold);
+            border-radius: 6px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 12px rgba(0,0,0,0.9);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            line-height: 1.5;
+            color: #ffd700;
+            text-shadow: 2px 2px 0 #000;
+            animation: banner-pop-live 280ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #top-notification-banner.monster { border-color: #ef4444; color: #fca5a5; box-shadow: 0 0 24px rgba(239, 68, 68, 0.7); }
+        #top-notification-banner.hunter  { border-color: #f0c246; color: #ffe066; box-shadow: 0 0 20px rgba(240, 194, 70, 0.6); }
+        #top-notification-banner.healer  { border-color: #22c55e; color: #86efac; box-shadow: 0 0 20px rgba(34, 197, 94, 0.6); }
+        #top-notification-banner.alive   { border-color: #dc2626; color: #fca5a5; background: rgba(50, 10, 10, 0.98); box-shadow: 0 0 30px rgba(220, 38, 38, 0.9); font-size: 12px; }
+        #top-notification-banner.validator { border-color: #38bdf8; color: #7dd3fc; box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
+        #top-notification-banner.mutator { border-color: #a855f7; color: #d8b4fe; box-shadow: 0 0 22px rgba(168, 85, 247, 0.7); }
+
+        @keyframes banner-pop-live {
+            0%   { transform: translate(-50%, -20px) scale(0.82); opacity: 0; }
+            100% { transform: translate(-50%, 0) scale(1);       opacity: 1; }
+        }
+
+        /* Decision prompt inside the same scroll modal used for records */
+        #decision-prompt-area { display: none; text-align: center; padding: 10px; }
+        #decision-prompt-area .prompt-msg {
+            font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.8;
+            color: #3e2723; margin-bottom: 20px; font-weight: bold;
+        }
+        #decision-prompt-area button {
+            font-family: 'Press Start 2P', monospace; font-size: 9px; padding: 10px 18px;
+            margin: 0 8px; border-radius: 3px; border: 2px solid #6b4a24; cursor: pointer;
+            box-shadow: 0 2px 0 #6b4a24;
+        }
+        #decision-prompt-area button.yes { background: #86efac; color: #14532d; }
+        #decision-prompt-area button.no  { background: #fca5a5; color: #7f1d1d; }
+        #decision-prompt-area button:hover { filter: brightness(1.08); }
     </style>
 </head>
 <body>
@@ -397,6 +447,7 @@
     <canvas id="game-canvas"></canvas>
 
     <!-- Top HUD -->
+    <div id="top-notification-banner"></div>
     <div id="toast-container"></div><div id="city-hud">
         <div class="hud-left">
             <div class="guild-badge" onclick="openRoyalDecrees()" title="Click to open Guild Hall Dossier">
@@ -463,11 +514,16 @@
     <div id="scroll-modal">
         <div class="parchment-scroll">
             <div class="parchment-close" onclick="closeRoyalDecrees()">X</div>
-            <h2>Guild Decrees & Security Patch Log</h2>
+            <h2 id="scroll-title">Guild Decrees & Security Patch Log</h2>
             <div id="decrees-content-area">
                 <div style="text-align:center; color:#3e2723; font-size:10px; line-height:1.8; margin-top:40px; font-family: 'Press Start 2P', monospace;">
                     * All codebase AST vulnerabilities patched and validated *
                 </div>
+            </div>
+            <div id="decision-prompt-area">
+                <div class="prompt-msg" id="decision-prompt-msg"></div>
+                <button class="yes" onclick="submitDecision('yes')">Apply Patch</button>
+                <button class="no" onclick="submitDecision('no')">Reject</button>
             </div>
         </div>
     </div>
@@ -516,7 +572,7 @@
             gold: 2450, elixir: 980,
             threatsTotal: 0, threatsCleared: 0,
             vulnerabilities: [], particles: [], monsters: [],
-            time: 0
+            time: 0, pendingDecision: null, mutatorGoblin: null
         };
 
         /* ── SAFE IMAGE LOADER ── */
@@ -814,6 +870,18 @@
             }, 2500);
         }
 
+        let topBannerTimer = null;
+        function showTopBanner(message, type, duration) {
+            duration = duration || 4200;
+            const banner = document.getElementById('top-notification-banner');
+            if (!banner) return;
+            banner.textContent = message;
+            banner.className = type || 'monster';
+            banner.style.display = 'flex';
+            if (topBannerTimer) clearTimeout(topBannerTimer);
+            topBannerTimer = setTimeout(function() { banner.style.display = 'none'; }, duration);
+        }
+
         function dispatchRollingCart(vulnTitle) {
             deliveryCart.active = true;
             deliveryCart.x = window.innerWidth - 120;
@@ -882,6 +950,14 @@
         }
 
         function openRoyalDecrees() {
+            if (gameState.pendingDecision) {
+                renderPendingDecision();
+                document.getElementById('scroll-modal').style.display = 'flex';
+                return;
+            }
+            document.getElementById('scroll-title').style.display = '';
+            document.getElementById('decrees-content-area').style.display = '';
+            document.getElementById('decision-prompt-area').style.display = 'none';
             const list = document.getElementById('decrees-content-area');
             if (gameState.vulnerabilities.length > 0) {
                 list.innerHTML = '';
@@ -896,6 +972,29 @@
                 });
             }
             document.getElementById('scroll-modal').style.display = 'flex';
+        }
+
+        // Interactive-mode approval reuses this same scroll: while a real
+        // decision is pending it takes over the scroll's content instead of
+        // the read-only decree list, so the two never show at once.
+        function renderPendingDecision() {
+            const d = gameState.pendingDecision;
+            document.getElementById('scroll-title').style.display = 'none';
+            document.getElementById('decrees-content-area').style.display = 'none';
+            const prompt = document.getElementById('decision-prompt-area');
+            prompt.style.display = 'block';
+            document.getElementById('decision-prompt-msg').textContent = d.message;
+        }
+
+        function submitDecision(choice) {
+            if (!gameState.pendingDecision) return;
+            fetch('/api/decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ choice: choice })
+            });
+            gameState.pendingDecision = null;
+            closeRoyalDecrees();
         }
 
         function openEggModal() {
@@ -924,7 +1023,9 @@
             gameState.threatsTotal++;
             const tier = vulnData.tier || 4;
             const tInfo = monsterTierInfo[tier] || monsterTierInfo[4];
-            
+            const fileBaseName = vulnData.file ? vulnData.file.split(/[\\/]/).pop() : 'the codebase';
+            showTopBanner('MONSTER APPEARED! ' + vulnData.vuln + ' detected in ' + fileBaseName + '!', 'monster');
+
             // Set the active building for the attack
             // Pick a random house
             let targetHouse = window.globalHousePositions[Math.floor(Math.random() * window.globalHousePositions.length)];
@@ -1052,15 +1153,7 @@
                 if (animTick % 8 === 0) c.animFrame++;
             });
 
-            // Lava Animation Tiles (45 frames)
-        const lavaTiles = [];
-        for (let i = 1; i <= 45; i++) {
-            const key = 'lava_' + i;
-            const num = String(10000 + i);
-            lavaTiles.push(loadImg(key, '/lava_tiles/' + num + '.png'));
-        }
-
-        // Monsters approach
+            // Monsters approach
             gameState.monsters.forEach(function(m) {
                 if (m.defeated) return;
                 const dx = m.tx - m.x;
@@ -1281,6 +1374,14 @@
                         ctx.restore();
                     }
                 }
+                else if (gameState.activeBuilding.state === 'validating') {
+                    // Not confirmed safe yet -- still shows damaged while
+                    // VALIDATOR's real re-attack is in flight.
+                    const brokenImg = assetImages['broken_house'];
+                    if (brokenImg && brokenImg.complete && brokenImg.naturalWidth > 0) {
+                        ctx.drawImage(brokenImg, abX, abY, 100, 100);
+                    }
+                }
                 else if (gameState.activeBuilding.state === 'healed') {
                     const shieldImg = assetImages['shield_icon'];
                     if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
@@ -1293,6 +1394,17 @@
                         ctx.restore();
                     }
                 }
+            }
+
+            // MUTATOR: no dedicated defender sprite -- it appears secretly
+            // as a goblin near the building for a moment, then vanishes.
+            if (gameState.mutatorGoblin && gameState.time < gameState.mutatorGoblin.until) {
+                const g = gameState.mutatorGoblin;
+                const remain = g.until - gameState.time;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, remain / 1.8));
+                drawImg(assetImages['mon_1'], g.x - 20, g.y - 20, 40, 40);
+                ctx.restore();
             }
 
             // 8. DCSS DECOR (fountains along the stone path, statues guard gates)
@@ -1368,7 +1480,7 @@
                         setTimeout(() => { if(defenders.healer.animState === 'action') defenders.healer.animState = 'idle'; }, 300);
                     }
                 }
-                else if (gameState.activeBuilding.state === 'healed') {
+                else if (gameState.activeBuilding.state === 'validating' || gameState.activeBuilding.state === 'healed') {
                     if (!gameState.shieldProjectile || !gameState.shieldProjectile.active) {
                         gameState.shieldProjectile = { active: true, x: defenders.validator.x, y: defenders.validator.y - 10, tx: gameState.activeBuilding.x, ty: gameState.activeBuilding.y, progress: 0 };
                         defenders.validator.animState = 'action'; defenders.validator.animFrame = 0;
@@ -1652,44 +1764,102 @@
                 case 'agent_action':
                     logTelemetry(d.agent, d.message);
                     if (gameState.activeBuilding) {
+                        const ab = gameState.activeBuilding;
                         if (d.agent === 'hunter') {
-                            // Hunter confirms finding -> dragon dies!
+                            // Hunter's confirmed exploit is what "kills" the
+                            // monster on screen -- HEALER still has to patch
+                            // it, and VALIDATOR can still bring it back.
                             gameState.monsters.forEach(m => {
                                 if (!m.dying) {
                                     m.dying = true;
                                     m.deathTick = 0;
                                 }
                             });
+                            showTopBanner('MONSTER ELIMINATED! Hunter drove it off.', 'hunter');
                         }
                         if (d.agent === 'healer') {
-                            gameState.activeBuilding.state = 'healing';
+                            ab.state = 'healing';
+                            defenders.healer.targetX = ab.x - 55;
+                            defenders.healer.targetY = ab.y + 35;
+                            defenders.healer.patrolState = 'healing_walk';
+                            showTopBanner(d.message, 'healer');
                         }
                         if (d.agent === 'validator') {
-                            gameState.activeBuilding.state = 'healed';
+                            ab.state = 'validating';
+                            defenders.validator.targetX = ab.x + 55;
+                            defenders.validator.targetY = ab.y + 35;
+                            defenders.validator.patrolState = 'validating_walk';
+                        }
+                        if (d.agent === 'mutator') {
+                            gameState.mutatorGoblin = { x: ab.x + 30, y: ab.y - 20, until: gameState.time + 1.8 };
+                            showTopBanner(d.message, 'mutator');
                         }
                     }
                     break;
                 case 'monster_defeated':
                     logTelemetry('system', 'Vulnerability patched: ' + d.vuln);
-                    var m = gameState.monsters.find(function(x) { return x.title === d.vuln; });
+                    showTopBanner('VULNERABILITY PATCHED & VERIFIED!', 'validator');
+                    var vuln = gameState.vulnerabilities.slice().reverse().find(function(v) { return v.title === d.vuln && v.status !== 'Patched'; });
+                    if (vuln) vuln.status = 'Patched';
+                    renderQuestTracker();
+                    var m = gameState.monsters.find(function(x) { return x.title === d.vuln && !x.defeated; });
                     if (m) {
                         m.hp = 0;
-                        m.defeated = true;
-                        addExperience(150, 300);
+                        m.dying = true;
+                        addExperience(m.xp || 150, m.gold || 300);
                         showFloatingText(d.vuln + ' PURGED & FORTIFIED!', '#22c55e', m.x, m.y - 40);
-                        setTimeout(function() { gameState.monsters = gameState.monsters.filter(function(x) { return x !== m; }); }, 1200);
+                        setTimeout(function() { m.defeated = true; gameState.monsters = gameState.monsters.filter(function(x) { return x !== m; }); }, 1200);
                     }
                     if (gameState.activeBuilding) {
+                        gameState.activeBuilding.state = 'healed';
                         setTimeout(() => {
-                            gameState.activeBuilding.state = 'normal'; // Reset to clean house
-                        }, 2000);
+                            if (gameState.activeBuilding) gameState.activeBuilding.state = 'normal';
+                        }, 2500);
                     }
-                    // Characters return to patrol base
-                    ['hunter', 'healer', 'validator'].forEach(agent => {
+                    // Hunter and Healer return to patrol; the Knight reports
+                    // to the castle (the Reporter) before heading back.
+                    ['hunter', 'healer'].forEach(agent => {
                         defenders[agent].patrolState = 'walking';
                         defenders[agent].targetX = defenders[agent].baseX;
                         defenders[agent].targetY = defenders[agent].baseY;
                     });
+                    (function() {
+                        const cw = 180, ch = 180;
+                        const cx = (canvas.width - cw) / 2 + cw / 2;
+                        const cy = Math.floor(canvas.height * 0.20) + 20 + ch;
+                        defenders.validator.targetX = cx;
+                        defenders.validator.targetY = cy;
+                        defenders.validator.patrolState = 'validating_walk';
+                        setTimeout(function() {
+                            defenders.validator.patrolState = 'walking';
+                            defenders.validator.targetX = defenders.validator.baseX;
+                            defenders.validator.targetY = defenders.validator.baseY;
+                        }, 2600);
+                    })();
+                    break;
+                case 'monster_still_alive':
+                    logTelemetry('system', 'VALIDATOR re-attack still succeeded against ' + d.vuln + '.');
+                    showTopBanner('oh no, the monster is still aliveee!!!', 'alive');
+                    var stillM = gameState.monsters.find(function(x) { return x.title === d.vuln; });
+                    if (stillM) { stillM.dying = false; stillM.deathTick = 0; stillM.hp = stillM.maxHp; }
+                    if (gameState.activeBuilding) gameState.activeBuilding.state = 'broken';
+                    defenders.validator.patrolState = 'walking';
+                    defenders.validator.targetX = defenders.validator.baseX;
+                    defenders.validator.targetY = defenders.validator.baseY;
+                    break;
+                case 'monster_mutated':
+                    logTelemetry('system', 'MUTATOR found a surviving bypass for ' + d.vuln + '.');
+                    showTopBanner('MUTATOR MUTATED THE PAYLOAD! The monster returns changed!', 'mutator');
+                    var mutM = gameState.monsters.find(function(x) { return x.title === d.vuln; });
+                    if (mutM) { mutM.dying = false; mutM.deathTick = 0; mutM.hp = mutM.maxHp; }
+                    if (gameState.activeBuilding) gameState.activeBuilding.state = 'broken';
+                    defenders.validator.patrolState = 'walking';
+                    defenders.validator.targetX = defenders.validator.baseX;
+                    defenders.validator.targetY = defenders.validator.baseY;
+                    break;
+                case 'decision_required':
+                    gameState.pendingDecision = { message: d.message };
+                    openRoyalDecrees();
                     break;
             }
         };
