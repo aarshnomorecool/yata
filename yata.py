@@ -851,6 +851,13 @@ def _run_repository(
                     console.print()
                     console.print("HEALER      [bold green]✓[/bold green] Patch Generated\n")
 
+            event_log.write(
+                "step_shown", step=2, name="patch_generated", round=round_number,
+                file=relative_file, vulnerability_type=finding.vulnerability_type,
+                strategy="Pattern-based (LLM)" if getattr(patch_result, "used_llm", False) else "Structural",
+                defense_strategy=patch_result.defense_strategy, summary=patch_result.patch_text,
+            )
+
             if verbose:
                 if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
                     print("[VALIDATOR]")
@@ -861,15 +868,29 @@ def _run_repository(
             patched_check = referee.verify_exploit(patch_result.patched_root, finding, attack_plan.payload)
             t_validator_verification += time.time() - start_verify
             patch_succeeded = not patched_check.attack_succeeded
+            original_blocked = patch_succeeded
 
             # MUTATOR also runs outside interactive mode, so safe/apply runs
             # report a real battery result rather than skipping re-attack.
+            battery_results_payload: list[dict] = []
             if patch_succeeded and mutator.get_battery(finding.vulnerability_type):
                 battery = mutator.run_battery(patch_result.patched_root, finding)
                 battery_summary = f"{battery.blocked_count}/{battery.total}"
+                battery_results_payload = [
+                    {"payload": r.payload, "blocked": r.blocked} for r in battery.results
+                ]
                 if not battery.all_blocked:
                     patch_succeeded = False
                     patched_check = battery.bypasses[0].verification
+
+            event_log.write(
+                "step_shown", step=3, name="validating_patch", round=round_number,
+                file=relative_file, vulnerability_type=finding.vulnerability_type,
+                original_blocked=original_blocked,
+                battery_total=len(battery_results_payload),
+                battery_blocked=sum(1 for r in battery_results_payload if r["blocked"]),
+                battery_results=battery_results_payload,
+            )
 
             if verbose:
                 if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
@@ -1081,6 +1102,17 @@ def _run_repository(
     report.performance_telemetry["report_generation"] = t_report_generation
     report.performance_telemetry["total_runtime"] = t_total_runtime
     report_paths = report_generator.write_reports(report)
+
+    # REPORTER's output is finalized -- signal completion so a renderer can
+    # show the run as actually over (e.g. Herald posting to the Notice
+    # Board) instead of guessing from the absence of further events.
+    event_log.write(
+        "run_complete", repository=repo_name,
+        score_before=score_before_all, score_after=final_score,
+        vulnerabilities_found=len(discovered_findings), vulnerabilities_healed=healed_count,
+        verification_result=verification_result,
+        report_paths={k: str(v) for k, v in report_paths.items()},
+    )
 
     findings_data = []
     for f in all_findings.values():

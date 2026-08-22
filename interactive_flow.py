@@ -99,6 +99,7 @@ def run_four_step_decision(
 
         event_log.write(
             "step_shown", step=2, name="patch_generated", round=round_number,
+            file=relative_file, vulnerability_type=finding.vulnerability_type,
             strategy=strategy_label, defense_strategy=patch_result.defense_strategy,
             summary=patch_result.patch_text, diff=diff_text,
         )
@@ -139,9 +140,15 @@ def run_four_step_decision(
 
         event_log.write(
             "step_shown", step=3, name="validating_patch", round=round_number,
+            file=relative_file, vulnerability_type=finding.vulnerability_type,
             original_blocked=original_blocked,
             battery_total=battery.total if battery else 0,
             battery_blocked=battery.blocked_count if battery else 0,
+            # Per-payload results, so a renderer can show one real MUTATOR
+            # re-attack per payload instead of a single aggregated number.
+            battery_results=[
+                {"payload": r.payload, "blocked": r.blocked} for r in battery.results
+            ] if battery else [],
         )
         battery_line = (
             f"[bold]MUTATOR battery:[/bold] {battery.blocked_count}/{battery.total} known bypass techniques blocked\n"

@@ -89,6 +89,14 @@ let drainTimer = null;
 let paused = false;
 let allEvents = [];
 
+// Agent choreography: each of HUNTER/HEALER/VALIDATOR/SCHOLAR has a home
+// slot on the Outpost walkway and moves to the affected building to perform
+// its real workflow step, then returns. No separate REPORTER sprite -- like
+// MUTATOR, it is a trait of the Notice Board itself (see reporterPost()).
+const agentSprites = {};
+const AGENT_HOME = {};
+let outpost = null;
+
 // Real, derived HUD state.
 const stats = { threats: [], healed: 0, xp: 0, score: null, batteryText: null };
 
@@ -343,22 +351,73 @@ function drawBoss(sc, bounds) {
 
 function drawAgents(sc, walkwayY) {
   const roster = [
-    { key: "agent_archer", label: "HUNTER" },
-    { key: "agent_sage", label: "HEALER" },
-    { key: "agent_knight", label: "VALIDATOR" },
-    { key: "agent_scholar", label: "SCHOLAR" },
+    { role: "hunter", sheet: "agent_archer", label: "HUNTER" },
+    { role: "healer", sheet: "agent_sage", label: "HEALER" },
+    { role: "validator", sheet: "agent_knight", label: "VALIDATOR" },
+    { role: "scholar", sheet: "agent_scholar", label: "SCHOLAR" },
   ];
   roster.forEach((agent, i) => {
     const x = 180 + i * 130;
     const y = walkwayY + WALKWAY_H - 8;
     sc.add.ellipse(x, y + 2, 44, 14, 0x000000, 0.35);
-    sc.add.sprite(x, y, agent.key, LPC_IDLE).setOrigin(0.5, 1).setScale(1.5);
+    const sprite = sc.add.sprite(x, y, agent.sheet, LPC_IDLE).setOrigin(0.5, 1).setScale(1.5).setDepth(4);
+    agentSprites[agent.role] = sprite;
+    AGENT_HOME[agent.role] = { x, y };
     const label = sc.add.text(x, y - 96, agent.label, {
       fontFamily: "Courier New", fontSize: "11px", color: "#0d0a07",
       backgroundColor: "#f0c246", padding: { x: 4, y: 1 },
-    }).setOrigin(0.5, 0);
-    label.setDepth(3);
+    }).setOrigin(0.5, 0).setDepth(4);
+    sprite.setData("label", label);
   });
+}
+
+// The Outpost: Scholar's Archive and Herald's Notice Board. Dropped during
+// the dungeon-fortress rewrite; restored here since SCHOLAR's and
+// REPORTER's logic both need a real destination to walk to / post at.
+function drawOutpost(sc, walkwayY) {
+  const y = walkwayY + WALKWAY_H - 8;
+  const archiveX = 700;
+  const noticeX = 810;
+
+  sc.add.rectangle(archiveX, y - 35, 92, 66, 0x3a2f1f).setStrokeStyle(2, 0xd9a441).setDepth(2);
+  sc.add.text(archiveX, y - 68, "Scholar's\nArchive", {
+    fontFamily: "Courier New", fontSize: "9px", color: "#e8dcc4", align: "center",
+  }).setOrigin(0.5, 1).setDepth(3);
+
+  sc.add.rectangle(noticeX, y - 35, 92, 66, 0x33291c).setStrokeStyle(2, 0x76a5af).setDepth(2);
+  sc.add.text(noticeX, y - 68, "Herald's\nNotice Board", {
+    fontFamily: "Courier New", fontSize: "9px", color: "#e8dcc4", align: "center",
+  }).setOrigin(0.5, 1).setDepth(3);
+
+  outpost = { archiveX, noticeX, y: y - 35, sc };
+}
+
+/* ------------------------------------------------- agent movement helpers */
+
+function promiseTween(sc, config) {
+  return new Promise((resolve) => {
+    sc.tweens.add({ ...config, onComplete: resolve });
+  });
+}
+
+function moveAgent(sc, role, x, y, duration) {
+  const sprite = agentSprites[role];
+  if (!sprite) return Promise.resolve();
+  sprite.setFlipX(x < sprite.x);
+  const label = sprite.getData("label");
+  const p = promiseTween(sc, { targets: sprite, x, y, duration: duration || 500, ease: "Sine.easeInOut" });
+  if (label) sc.tweens.add({ targets: label, x, y: y - 96, duration: duration || 500, ease: "Sine.easeInOut" });
+  return p;
+}
+
+function sendAgentHome(sc, role) {
+  const home = AGENT_HOME[role];
+  if (!home) return Promise.resolve();
+  return moveAgent(sc, role, home.x, home.y, 500);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // broken_house.png ships with an opaque black background rather than
@@ -510,10 +569,164 @@ function flashBypass(sc, filename) {
   if (building.demon) sc.tweens.add({ targets: building.demon, scale: 1.4, duration: 200, yoyo: true });
 }
 
+/* --------------------------------------------------- agent encounter beats
+   Exact visual logic per workflow step:
+   HUNTER    Finding Confirmed  -> fires a ranged shot; the enemy spawns ON
+             the house and the house shatters into broken_house.png.
+   HEALER    Patch Generated    -> walks to the house; a pulsing green glow
+             indicates the patch being synthesized.
+   VALIDATOR Validating Patch   -> walks to the house, swings at it once per
+             MUTATOR battery payload (each a real re-attack, not a fake
+             tick); on success a blue/gold shield flashes, the demon is
+             vanquished, and the house is fully repaired.
+   SCHOLAR   (on patch held)    -> walks from the repaired house to the
+             Notice Board with a floating "+XP", recording the win.
+   ------------------------------------------------------------------- */
+
+async function hunterEncounter(sc, filename, vulnerabilityType, tierMap) {
+  const building = buildingIndex[filename];
+  if (!building) return;
+  await moveAgent(sc, "hunter", building.x - 55, building.bottom, 500);
+
+  const archer = agentSprites.hunter;
+  const arrow = sc.add.rectangle(archer.x + 8, archer.y - 34, 9, 3, 0xf0e0b8).setDepth(5);
+  await promiseTween(sc, { targets: arrow, x: building.x, y: building.y, duration: 240, ease: "Linear" });
+  arrow.destroy();
+
+  spawnDemon(sc, filename, vulnerabilityType, tierMap);   // impact: spawn + shatter
+  await wait(400);
+  await sendAgentHome(sc, "hunter");
+}
+
+async function healerEncounter(sc, filename) {
+  const building = buildingIndex[filename];
+  if (!building) return;
+  await moveAgent(sc, "healer", building.x - 45, building.bottom, 500);
+
+  if (building.healGlow) building.healGlow.destroy();
+  const glowWidth = (building.sprite ? building.sprite.displayWidth : 80) * 1.15;
+  const glow = sc.add.ellipse(building.x, building.y, glowWidth, building.height * 1.05, 0x22ff66, 0.3).setDepth(1);
+  sc.tweens.add({ targets: glow, alpha: 0.1, duration: 480, yoyo: true, repeat: -1 });
+  building.healGlow = glow;
+}
+
+function clearHealGlow(building) {
+  if (building.healGlow) {
+    building.healGlow.destroy();
+    building.healGlow = null;
+  }
+}
+
+async function validatorArrive(sc, filename) {
+  const building = buildingIndex[filename];
+  if (!building) return;
+  clearHealGlow(building);
+  sendAgentHome(sc, "healer");
+
+  await moveAgent(sc, "validator", building.x + 45, building.bottom, 500);
+  const knight = agentSprites.validator;
+  await promiseTween(sc, { targets: knight, angle: -18, duration: 90, yoyo: true });
+}
+
+// One real strike per MUTATOR battery payload -- a mutated variant of the
+// same enemy pops in, attacks, and the building flashes green (blocked) or
+// red (bypassed), driven entirely by battery_results computed in
+// mutator_agent.py, never simulated.
+function mutatorStrike(sc, filename, blocked, tierMap, vulnerabilityType) {
+  const building = buildingIndex[filename];
+  if (!building) return;
+  const tier = tierMap[vulnerabilityType] || "imp";
+  const spriteKey = TIER_SPRITES[tier] || "monster_imp";
+
+  const mutant = sc.add.image(building.x - BUILDING_W * 0.5, building.bottom, spriteKey)
+    .setOrigin(0.5, 1).setDisplaySize(28, 28).setAlpha(0).setDepth(3);
+  sc.tweens.add({
+    targets: mutant, alpha: 1, x: building.x - 8, duration: 160, yoyo: true,
+    onComplete: () => mutant.destroy(),
+  });
+
+  const flashColor = blocked ? 0x39d353 : 0xff3b3b;
+  const w = building.sprite ? building.sprite.displayWidth : 80;
+  const flash = sc.add.rectangle(building.x, building.y, w, building.height, flashColor, 0.35).setDepth(2);
+  sc.tweens.add({ targets: flash, alpha: 0, duration: 280, onComplete: () => flash.destroy() });
+
+  const knight = agentSprites.validator;
+  if (knight) sc.tweens.add({ targets: knight, angle: blocked ? -10 : 10, duration: 90, yoyo: true });
+  if (!blocked && building.overlay) building.overlay.setAlpha(1);
+}
+
+function shieldFlash(sc, building) {
+  const w = (building.sprite ? building.sprite.displayWidth : 80) * 1.25;
+  const h = building.height * 1.15;
+  const shield = sc.add.ellipse(building.x, building.y, w, h, 0x66d9ff, 0.45)
+    .setStrokeStyle(3, 0xf0c246).setDepth(3);
+  sc.tweens.add({ targets: shield, alpha: 0, scaleX: 1.3, scaleY: 1.3, duration: 550, onComplete: () => shield.destroy() });
+}
+
+// Resolution of the current finding, once VALIDATOR's real re-attack result
+// (patch_outcome) is known. This is the ONLY place the shield/vanquish/
+// repair sequence fires, so it can never run ahead of the real backend
+// verdict.
+async function validatorResolve(sc, filename, succeeded, xpGained) {
+  const building = buildingIndex[filename];
+  if (building) clearHealGlow(building);
+
+  if (succeeded && building) {
+    shieldFlash(sc, building);
+    await wait(200);
+    fadeOutFinding(sc, filename);   // vanquish + repair, already real-state-driven
+    await sendAgentHome(sc, "validator");
+    await scholarEncounter(sc, filename, xpGained);
+  } else {
+    await sendAgentHome(sc, "validator");
+  }
+}
+
+// SCHOLAR: walks from the just-repaired house to the Notice Board with a
+// floating "+XP", then home. The XP figure is the real per-vulnerability
+// bounty (VALIDATOR's RISK_WEIGHTS x XP_PER_RISK_POINT), not a placeholder.
+// Persisting the signature into LEARNER's memory.json is a real backend
+// step (learner_agent.py) that already happens once per run; this beat
+// represents that recording, it does not perform it.
+async function scholarEncounter(sc, filename, xpGained) {
+  const building = buildingIndex[filename];
+  if (!building || !outpost) return;
+
+  await moveAgent(sc, "scholar", building.x + 30, building.bottom, 500);
+  const xpText = sc.add.text(building.x, building.y, `+${xpGained} XP`, {
+    fontFamily: "Courier New", fontSize: "15px", color: "#39d353", fontStyle: "bold",
+  }).setOrigin(0.5, 0.5).setDepth(6);
+  sc.tweens.add({ targets: xpText, y: xpText.y - 44, alpha: 0, duration: 1200, onComplete: () => xpText.destroy() });
+
+  await wait(300);
+  await moveAgent(sc, "scholar", outpost.noticeX, outpost.y + 33, 650);
+  await wait(450);
+  await sendAgentHome(sc, "scholar");
+}
+
+// REPORTER has no separate sprite -- like MUTATOR, it is a trait of the
+// Notice Board. On run_complete (emitted once REPORTER's real JSON/
+// Markdown/HTML report has been written to disk) the board posts a scroll
+// summarizing that same real report data.
+function reporterPost(sc, evt) {
+  if (!outpost) return;
+  const scroll = sc.add.rectangle(outpost.noticeX, outpost.y, 62, 42, 0xead9ad, 0.95)
+    .setStrokeStyle(2, 0x6b4a24).setDepth(5).setScale(0.15, 1);
+  sc.tweens.add({ targets: scroll, scaleX: 1, duration: 420, ease: "Back.easeOut" });
+
+  const summary = `Run complete: ${evt.verification_result}\n` +
+    `${evt.vulnerabilities_healed}/${evt.vulnerabilities_found} healed\n` +
+    `Score ${evt.score_before} -> ${evt.score_after}`;
+  sc.add.text(outpost.noticeX, outpost.y + 44, summary, {
+    fontFamily: "Courier New", fontSize: "9px", color: "#e8dcc4", align: "center",
+  }).setOrigin(0.5, 0).setDepth(5);
+}
+
 function describeEvent(evt) {
   switch (evt.event_type) {
     case "run_started": return [`[SYSTEM] Assessment started (${evt.mode} mode)`, true];
     case "run_aborted": return [`[SYSTEM] Aborted by user at round ${evt.round}`, true];
+    case "run_complete": return [`[REPORTER] Report posted -- ${evt.verification_result}, score ${evt.score_before} -> ${evt.score_after}`, true];
     case "finding_confirmed": return [`[HUNTER] ${evt.vulnerability_type} confirmed -- ${evt.file}:${evt.line_number}`, true];
     case "patch_outcome": return [`[VALIDATOR] Patch ${evt.succeeded ? "HELD" : "FAILED"} -- ${evt.file}`, false];
     case "human_choice": return [`[HUMAN] chose: ${evt.choice}`, false];
@@ -533,7 +746,7 @@ function applyEvent(sc, evt) {
   logLine(text, hl);
 
   if (evt.event_type === "finding_confirmed") {
-    spawnDemon(sc, evt.file, evt.vulnerability_type, tierMap);
+    hunterEncounter(sc, evt.file, evt.vulnerability_type, tierMap);   // async, not awaited -- pacing is via LIVE_EVENT_GAP
     stats.threats.push({
       type: evt.vulnerability_type, severity: evt.severity || "UNKNOWN",
       file: evt.file, line: evt.line_number, healed: false,
@@ -541,27 +754,41 @@ function applyEvent(sc, evt) {
       strategy: null, battery: null, evidence: null,
     });
   } else if (evt.event_type === "patch_outcome") {
-    if (evt.succeeded) {
-      fadeOutFinding(sc, evt.file);
-      const threat = stats.threats.find((t) => t.file === evt.file && !t.healed);
-      if (threat) {
-        threat.healed = true;
-        stats.healed += 1;
-        stats.xp += bountyFor(threat.type);
-      }
+    const threat = stats.threats.find((t) => t.file === evt.file && !t.healed);
+    let xpGained = 0;
+    if (evt.succeeded && threat) {
+      threat.healed = true;
+      stats.healed += 1;
+      xpGained = bountyFor(threat.type);
+      stats.xp += xpGained;
     }
+    validatorResolve(sc, evt.file, evt.succeeded, xpGained);
+  } else if (evt.event_type === "run_complete") {
+    if (typeof evt.score_after === "number") stats.score = evt.score_after;
+    reporterPost(sc, evt);
   } else if (evt.event_type === "step_shown") {
     const current = currentThreat(evt.round);
     if (evt.step === 1 && current) {
       if (evt.payload) current.payload = evt.payload;
       if (evt.evidence) current.evidence = evt.evidence;
     }
-    if (evt.step === 2 && current && evt.strategy) current.strategy = evt.strategy;
+    if (evt.step === 2) {
+      if (current && evt.strategy) current.strategy = evt.strategy;
+      if (evt.file) healerEncounter(sc, evt.file);
+    }
     if (evt.step === 3) {
       if (current && typeof evt.battery_total === "number") {
         current.battery = evt.battery_total === 0
           ? "skipped (presence check, no payload shape)"
           : `${evt.battery_blocked}/${evt.battery_total} known bypasses blocked`;
+      }
+      if (evt.file) {
+        validatorArrive(sc, evt.file).then(() => {
+          const results = evt.battery_results || [];
+          results.forEach((r, i) => {
+            setTimeout(() => mutatorStrike(sc, evt.file, r.blocked, tierMap, evt.vulnerability_type), 260 + i * 260);
+          });
+        });
       }
       if (evt.battery_total > 0 && evt.battery_blocked < evt.battery_total && activeFindingFile) {
         flashBypass(sc, activeFindingFile);
@@ -648,6 +875,7 @@ function resetSceneState() {
   Object.values(buildingIndex).forEach((b) => {
     if (b.demon) { b.demon.destroy(); b.demon = null; }
     if (b.overlay) { b.overlay.destroy(); b.overlay = null; }
+    clearHealGlow(b);
     // A replay restart must also rebuild anything left ruined by the last pass.
     if (b.sprite && b.artKey) {
       b.sprite.setTexture(b.artKey);
@@ -656,6 +884,16 @@ function resetSceneState() {
     }
   });
   activeFindingFile = null;
+  if (scene) {
+    ["hunter", "healer", "validator", "scholar"].forEach((role) => {
+      const home = AGENT_HOME[role];
+      const sprite = agentSprites[role];
+      if (!home || !sprite) return;
+      sprite.setPosition(home.x, home.y);
+      const label = sprite.getData("label");
+      if (label) label.setPosition(home.x, home.y - 96);
+    });
+  }
   document.getElementById("log").innerHTML = "";
   renderThreats();
   renderStats();
@@ -737,6 +975,7 @@ function create() {
   const bounds = drawEnvironment(this);
   drawVillage(this, initial);
   drawAgents(this, bounds.walkwayY);
+  drawOutpost(this, bounds.walkwayY);
   drawBoss(this, bounds);
   fitCamera(this, bounds);
 
