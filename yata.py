@@ -453,6 +453,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     game_parser.add_argument("target", help="Repository name")
     game_parser.add_argument("--port", type=int, default=5151, help="Port to serve the game view on")
     game_parser.add_argument("--no-browser", action="store_true", help="Do not auto-open a browser tab")
+    game_parser.add_argument("--replay", action="store_true", help="Replay this repository's last recorded event log from the start, paced for filming")
+    game_parser.add_argument("--speed", type=float, default=1.0, help="Replay speed multiplier (0.25-4)")
 
     args = parser.parse_args(raw_args)
 

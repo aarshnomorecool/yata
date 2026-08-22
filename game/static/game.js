@@ -25,16 +25,30 @@ const VILLAGE_TOP = FLOOR_TOP + 96;
 
 const TIER_SPRITES = { imp: "monster_imp", hobgoblin: "monster_hobgoblin", demon: "monster_demon" };
 
-// Placeholder art keys. Swap these paths when the real castle / hut / torch /
-// banner assets land -- nothing else in this file needs to change.
+// Real pixel-art buildings, one per building_type. A building with a live
+// vulnerability is drawn as BROKEN_ART and reverts to its own art once
+// VALIDATOR confirms the patch held -- the damage is driven by real state,
+// not decoration.
+// Only the pixel-art buildings are used. watchtower.png / watchtower2.png are
+// photorealistic 3D renders and read as a different game next to these, so
+// they stay in assets/ unused rather than breaking the visual language.
 const BUILDING_ART = {
-  "Townhall":     "hut_stone",
-  "Market Stall": "hut_wood",
-  "The Vault":    "hut_stone",
-  "Strongbox":    "hut_stone",
-  "Guild Hall":   "hut_wood",
-  "House":        "hut_wood",
+  "Townhall":     "b_townhall",
+  "Market Stall": "b_house1",
+  "The Vault":    "b_townhall",
+  "Strongbox":    "b_house1",
+  "Guild Hall":   "b_dungeon_house",
+  "House":        "b_dungeon_house",
 };
+const BROKEN_ART = "b_broken_keyed";
+
+// Rendered height per type; widths follow each source image's aspect ratio.
+const BUILDING_HEIGHT = {
+  "Townhall": 190,
+  "The Vault": 170,
+  "Strongbox": 170,
+};
+const DEFAULT_BUILDING_HEIGHT = 130;
 
 const ROOF_TINT = {
   "Townhall": 0xf0c246,
@@ -47,6 +61,17 @@ const ROOF_TINT = {
 
 const LPC_IDLE = 130;
 
+// Events are applied from a paced queue rather than all at once. On a live
+// run a finding and its patch outcome can arrive in the same poll, which
+// would spawn a demon and kill it in the same frame; pacing guarantees each
+// beat is actually visible. ?replay=1 re-runs a finished event log from the
+// start so a demo can be filmed without re-running the assessment.
+const PARAMS = new URLSearchParams(location.search);
+const REPLAY = PARAMS.get("replay") === "1";
+const SPEED = Math.max(0.25, Math.min(parseFloat(PARAMS.get("speed") || "1"), 4));
+const LIVE_EVENT_GAP = 700;
+const REPLAY_EVENT_GAP = 1100;
+
 let cursor = 0;
 const owner = window.YATA_OWNER === true;
 let village = [];
@@ -57,6 +82,11 @@ let lastPendingGeneration = 0;
 let scene = null;
 let riskWeights = {};
 let xpPerRisk = 4;
+let tierMap = {};
+let eventQueue = [];
+let drainTimer = null;
+let paused = false;
+let allEvents = [];
 
 // Real, derived HUD state.
 const stats = { threats: [], healed: 0, xp: 0, score: null, batteryText: null };
@@ -139,10 +169,12 @@ function drawMinimap() {
 /* ---------------------------------------------------------------- Phaser */
 
 function preload() {
-  this.load.spritesheet("agent_archer", "/assets/characters/archer/lpc_archer_ranger_male.png", { frameWidth: 64, frameHeight: 64 });
-  this.load.spritesheet("agent_sage", "/assets/characters/sage/lpc_wizard_male.png", { frameWidth: 64, frameHeight: 64 });
-  this.load.spritesheet("agent_knight", "/assets/characters/knight/lpc_knight_steel_male.png", { frameWidth: 64, frameHeight: 64 });
-  this.load.spritesheet("agent_scholar", "/assets/characters/scholar/lpc_scholar_female.png", { frameWidth: 64, frameHeight: 64 });
+  // Purpose-built agent sheets (832x1344 = the standard LPC 13x21 grid).
+  const ch = "/assets/characters/portraits";
+  this.load.spritesheet("agent_archer", `${ch}/hunter.png`, { frameWidth: 64, frameHeight: 64 });
+  this.load.spritesheet("agent_sage", `${ch}/healer.png`, { frameWidth: 64, frameHeight: 64 });
+  this.load.spritesheet("agent_knight", `${ch}/validator.png`, { frameWidth: 64, frameHeight: 64 });
+  this.load.spritesheet("agent_scholar", `${ch}/scholar.png`, { frameWidth: 64, frameHeight: 64 });
 
   this.load.image("monster_imp", "/assets/monsters/tier1_goblin/dcss_goblins/goblin.png");
   this.load.image("monster_hobgoblin", "/assets/monsters/tier2_orc/dcss_orcs/orc.png");
@@ -162,13 +194,11 @@ function preload() {
   this.load.image("fountain", `${dg}/decor/sparkling_fountain.png`);
   this.load.image("altar", `${dg}/altars/ecumenical.png`);
 
-  // Placeholder building art, composed from the Kenney RPG pack until the
-  // real castle / hut sprites arrive.
-  const kp = "/assets/environment/town/kenney_rpg_pack/PNG/rpgTile";
-  this.load.image("hut_stone", `${kp}144.png`);
-  this.load.image("hut_wood", `${kp}122.png`);
-  this.load.image("hut_wall", `${kp}048.png`);
-  this.load.image("hut_door", `${kp}189.png`);
+  const bd = "/assets/buildings";
+  this.load.image("b_townhall", `${bd}/dungeon_townhall.png`);
+  this.load.image("b_dungeon_house", `${bd}/dungeon_house.png`);
+  this.load.image("b_house1", `${bd}/house1.png`);
+  this.load.image("b_broken", `${bd}/broken_house.png`);
 
   this.load.image("icon_xp", "/assets/ui/dcss_icons/spell_icons/fireball.png");
   this.load.image("icon_heal", "/assets/ui/dcss_icons/potions/ruby.png");
@@ -261,6 +291,33 @@ function drawAgents(sc, walkwayY) {
   });
 }
 
+// broken_house.png ships with an opaque black background rather than
+// transparency, which renders as a black slab behind the ruins. Key the
+// near-black pixels out once at startup into a derived texture.
+function keyOutBlack(sc, srcKey, outKey, threshold) {
+  threshold = threshold || 28;
+  if (sc.textures.exists(outKey)) return;
+  const source = sc.textures.get(srcKey).getSourceImage();
+  const canvasTexture = sc.textures.createCanvas(outKey, source.width, source.height);
+  const ctx = canvasTexture.getContext();
+  ctx.drawImage(source, 0, 0);
+  const image = ctx.getImageData(0, 0, source.width, source.height);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] < threshold && data[i + 1] < threshold && data[i + 2] < threshold) {
+      data[i + 3] = 0;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  canvasTexture.refresh();
+}
+
+// Scale a sprite to a target height, preserving its source aspect ratio.
+function scaleToHeight(sprite, height) {
+  const ratio = sprite.width ? sprite.height / sprite.width : 1;
+  sprite.setDisplaySize(height / ratio, height);
+}
+
 function drawVillage(sc, initial) {
   village = initial.village || [];
   edges = initial.edges || [];
@@ -272,26 +329,31 @@ function drawVillage(sc, initial) {
     const x = 140 + col * SPACING_X;
     const y = VILLAGE_TOP + row * SPACING_Y;
 
-    const roofKey = BUILDING_ART[entry.building_type] || "hut_wood";
-    sc.add.ellipse(x + BUILDING_W / 2, y + BUILDING_H + 4, BUILDING_W, 16, 0x000000, 0.32);
-    sc.add.image(x, y, roofKey).setOrigin(0, 0).setDisplaySize(BUILDING_W, BUILDING_H * 0.5);
-    sc.add.image(x, y + BUILDING_H * 0.5, "hut_wall").setOrigin(0, 0).setDisplaySize(BUILDING_W, BUILDING_H * 0.5);
-    sc.add.image(x + BUILDING_W / 2, y + BUILDING_H, "hut_door").setOrigin(0.5, 1).setDisplaySize(26, 34);
+    const artKey = BUILDING_ART[entry.building_type] || "b_dungeon_house";
+    const height = BUILDING_HEIGHT[entry.building_type] || DEFAULT_BUILDING_HEIGHT;
+    const baseY = y + BUILDING_H;   // every building stands on a common baseline
 
-    const plate = sc.add.text(x + BUILDING_W / 2, y + BUILDING_H + 10, entry.filename.split(/[\\/]/).pop(), {
+    const sprite = sc.add.image(x + BUILDING_W / 2, baseY, artKey).setOrigin(0.5, 1);
+    scaleToHeight(sprite, height);
+    sc.add.ellipse(x + BUILDING_W / 2, baseY + 3, sprite.displayWidth * 0.8, 14, 0x000000, 0.35).setDepth(-1);
+
+    const plate = sc.add.text(x + BUILDING_W / 2, baseY + 10, entry.filename.split(/[\\/]/).pop(), {
       fontFamily: "Courier New", fontSize: "10px", color: "#0d0a07",
       backgroundColor: "#c9a94e", padding: { x: 4, y: 1 },
     }).setOrigin(0.5, 0);
     plate.setDepth(3);
-    sc.add.text(x + BUILDING_W / 2, y - 16, entry.building_type, {
+    sc.add.text(x + BUILDING_W / 2, baseY - height - 16, entry.building_type, {
       fontFamily: "Courier New", fontSize: "10px", color: "#9c8a68",
     }).setOrigin(0.5, 0);
 
     buildingIndex[entry.filename] = {
       x: x + BUILDING_W / 2,
-      y: y + BUILDING_H * 0.5,
-      top: y,
-      bottom: y + BUILDING_H,
+      y: baseY - height / 2,
+      top: baseY - height,
+      bottom: baseY,
+      height,
+      sprite,
+      artKey,
       demon: null,
       overlay: null,
     };
@@ -336,6 +398,12 @@ function spawnDemon(sc, filename, vulnerabilityType, tierMap) {
   if (building.demon) building.demon.destroy();
   if (building.overlay) building.overlay.destroy();
 
+  // The building itself takes damage while the vulnerability is live.
+  if (building.sprite) {
+    building.sprite.setTexture(BROKEN_ART);
+    scaleToHeight(building.sprite, building.height);
+  }
+
   building.demon = sc.add.image(building.x + BUILDING_W * 0.62, building.bottom, spriteKey)
     .setOrigin(0.5, 1).setDisplaySize(40, 40).setDepth(2);
   building.overlay = sc.add.image(building.x, building.y + 8, "fire_overlay")
@@ -353,6 +421,14 @@ function fadeOutFinding(sc, filename) {
   });
   building.overlay = null;
   building.demon = null;
+
+  // Patch held -- the building is rebuilt back to its own art.
+  if (building.sprite && building.artKey) {
+    building.sprite.setTexture(building.artKey);
+    scaleToHeight(building.sprite, building.height);
+    building.sprite.setAlpha(0.35);
+    sc.tweens.add({ targets: building.sprite, alpha: 1, duration: 650 });
+  }
   if (activeFindingFile === filename) activeFindingFile = null;
 }
 
@@ -382,55 +458,110 @@ function describeEvent(evt) {
   }
 }
 
-function applyEvents(sc, events, tierMap) {
-  events.forEach((evt) => {
-    const [text, hl] = describeEvent(evt);
-    logLine(text, hl);
+function applyEvent(sc, evt) {
+  const [text, hl] = describeEvent(evt);
+  logLine(text, hl);
 
-    if (evt.event_type === "finding_confirmed") {
-      spawnDemon(sc, evt.file, evt.vulnerability_type, tierMap);
-      stats.threats.push({
-        type: evt.vulnerability_type, severity: evt.severity || "UNKNOWN",
-        file: evt.file, line: evt.line_number, healed: false,
-      });
-    } else if (evt.event_type === "patch_outcome") {
-      if (evt.succeeded) {
-        fadeOutFinding(sc, evt.file);
-        const threat = stats.threats.find((t) => t.file === evt.file && !t.healed);
-        if (threat) {
-          threat.healed = true;
-          stats.healed += 1;
-          stats.xp += bountyFor(threat.type);
-        }
+  if (evt.event_type === "finding_confirmed") {
+    spawnDemon(sc, evt.file, evt.vulnerability_type, tierMap);
+    stats.threats.push({
+      type: evt.vulnerability_type, severity: evt.severity || "UNKNOWN",
+      file: evt.file, line: evt.line_number, healed: false,
+    });
+  } else if (evt.event_type === "patch_outcome") {
+    if (evt.succeeded) {
+      fadeOutFinding(sc, evt.file);
+      const threat = stats.threats.find((t) => t.file === evt.file && !t.healed);
+      if (threat) {
+        threat.healed = true;
+        stats.healed += 1;
+        stats.xp += bountyFor(threat.type);
       }
-    } else if (evt.event_type === "step_shown") {
-      if (evt.step === 4 && typeof evt.score_after === "number") stats.score = evt.score_after;
-      if (evt.step === 3 && evt.battery_total > 0 && evt.battery_blocked < evt.battery_total && activeFindingFile) {
-        flashBypass(sc, activeFindingFile);
-      }
-      if (evt.step === "3-exception" && activeFindingFile) flashBypass(sc, activeFindingFile);
     }
-  });
-
-  if (events.length) {
-    renderThreats();
-    renderStats();
-    drawMinimap();
+  } else if (evt.event_type === "step_shown") {
+    if (evt.step === 4 && typeof evt.score_after === "number") stats.score = evt.score_after;
+    if (evt.step === 3 && evt.battery_total > 0 && evt.battery_blocked < evt.battery_total && activeFindingFile) {
+      flashBypass(sc, activeFindingFile);
+    }
+    if (evt.step === "3-exception" && activeFindingFile) flashBypass(sc, activeFindingFile);
   }
+
+  renderThreats();
+  renderStats();
+  drawMinimap();
+}
+
+function enqueueEvents(events) {
+  if (!events || !events.length) return;
+  eventQueue.push(...events);
+  updateReplayStatus();
+}
+
+function startDrain(sc) {
+  if (drainTimer) return;
+  const gap = (REPLAY ? REPLAY_EVENT_GAP : LIVE_EVENT_GAP) / SPEED;
+  drainTimer = setInterval(() => {
+    if (paused || !eventQueue.length) return;
+    applyEvent(sc, eventQueue.shift());
+    updateReplayStatus();
+  }, gap);
+}
+
+function resetSceneState() {
+  stats.threats = [];
+  stats.healed = 0;
+  stats.xp = 0;
+  stats.score = null;
+  Object.values(buildingIndex).forEach((b) => {
+    if (b.demon) { b.demon.destroy(); b.demon = null; }
+    if (b.overlay) { b.overlay.destroy(); b.overlay = null; }
+  });
+  activeFindingFile = null;
+  document.getElementById("log").innerHTML = "";
+  renderThreats();
+  renderStats();
+  drawMinimap();
+}
+
+function restartReplay() {
+  eventQueue = allEvents.slice();
+  resetSceneState();
+  paused = false;
+  updateReplayStatus();
+}
+
+function updateReplayStatus() {
+  const el = document.getElementById("replay-status");
+  if (!el) return;
+  const done = allEvents.length - eventQueue.length;
+  el.textContent = `${done}/${allEvents.length}`;
+  const btn = document.getElementById("replay-pause");
+  if (btn) btn.textContent = paused ? "PLAY" : "PAUSE";
 }
 
 /* ------------------------------------------------------------- decisions */
 
+function setParchmentVisible(visible) {
+  const overlay = document.getElementById("parchment-overlay");
+  const scrim = document.getElementById("scrim");
+  overlay.style.display = visible ? "flex" : "none";
+  if (scrim) scrim.classList.toggle("on", visible);
+  if (visible) {
+    // restart the scale-in so each new decision reads as a distinct beat
+    overlay.style.animation = "none";
+    void overlay.offsetWidth;
+    overlay.style.animation = "";
+  }
+}
+
 function renderPending(pending) {
   const overlay = document.getElementById("parchment-overlay");
-  if (!owner || !pending) { overlay.style.display = "none"; return; }
+  if (!owner || !pending) { setParchmentVisible(false); return; }
   if (pending.generation === lastPendingGeneration) return;
   lastPendingGeneration = pending.generation;
 
   const isException = pending.message.indexOf("failed re-attack") !== -1;
-  overlay.style.backgroundImage = isException
-    ? "url(/assets/ui/dcss_icons/parchment/parchment_single_fire.png)"
-    : "url(/assets/ui/dcss_icons/parchment/base_parchment_mid_level.png)";
+  overlay.classList.toggle("exception", isException);
   overlay.querySelector("#parchment-message").textContent = pending.message;
 
   const choicesEl = overlay.querySelector("#parchment-choices");
@@ -440,7 +571,7 @@ function renderPending(pending) {
     const btn = document.createElement("button");
     btn.textContent = choice.name;
     btn.onclick = () => {
-      overlay.style.display = "none";
+      setParchmentVisible(false);
       fetch("/api/decision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -449,7 +580,7 @@ function renderPending(pending) {
     };
     choicesEl.appendChild(btn);
   });
-  overlay.style.display = "flex";
+  setParchmentVisible(true);
 }
 
 /* ------------------------------------------------------------ scene wiring */
@@ -459,6 +590,8 @@ function create() {
   const initial = window.__yataInitial;
   riskWeights = initial.risk_weights || {};
   xpPerRisk = initial.xp_per_risk_point || 4;
+
+  keyOutBlack(this, "b_broken", "b_broken_keyed");
 
   village = initial.village || [];
   const bounds = drawEnvironment(this);
@@ -473,24 +606,48 @@ function create() {
     if (img) img.src = this.textures.getBase64("icon_" + name);
   });
 
-  applyEvents(this, initial.events || [], initial.tier_map || {});
+  tierMap = initial.tier_map || {};
+  allEvents = (initial.events || []).slice();
+  enqueueEvents(initial.events || []);
+  startDrain(this);
+
   renderThreats();
   renderStats();
   drawMinimap();
   renderPending(initial.pending);
   cursor = initial.cursor || 0;
 
+  setupReplayControls();
+
   setInterval(async () => {
     try {
       const res = await fetch(`/api/state?since=${cursor}`);
       const data = await res.json();
       cursor = data.cursor;
-      applyEvents(scene, data.events, data.tier_map);
+      if (data.tier_map) tierMap = data.tier_map;
+      if (data.events && data.events.length) {
+        allEvents.push(...data.events);
+        enqueueEvents(data.events);
+      }
       renderPending(data.pending);
     } catch (err) {
       // transient poll failure; next tick retries
     }
   }, 1000);
+}
+
+function setupReplayControls() {
+  const bar = document.getElementById("replay-bar");
+  if (!bar) return;
+  bar.style.display = "flex";
+  document.getElementById("replay-mode").textContent = REPLAY ? "REPLAY" : "LIVE";
+  document.getElementById("replay-pause").onclick = () => {
+    paused = !paused;
+    updateReplayStatus();
+  };
+  document.getElementById("replay-restart").onclick = restartReplay;
+  if (REPLAY) restartReplay();
+  updateReplayStatus();
 }
 
 function bootstrap() {

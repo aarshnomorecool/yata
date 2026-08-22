@@ -63,18 +63,58 @@
   #mode-badge.owner { color: #a6e08a; border-color: #3f6f2f; }
   #mode-badge.readonly { color: #a08f6d; }
 
-  /* ---- Parchment decision overlay ---- */
-  #parchment-overlay {
-    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: min(560px, 84vw); min-height: 240px; background-size: 100% 100%; background-repeat: no-repeat;
-    color: #2b1d0e; flex-direction: column; align-items: center; justify-content: center;
-    padding: 54px 46px; box-sizing: border-box; text-align: center; z-index: 20; pointer-events: auto;
+  #replay-bar { display: none; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    align-items: center; gap: 10px; padding: 6px 12px; font-size: 10px; letter-spacing: 1px; pointer-events: auto; }
+  #replay-bar button { font-family: "Courier New", monospace; font-size: 10px; letter-spacing: 1px;
+    padding: 4px 10px; background: #2a1d10; color: var(--gold); border: 1px solid var(--edge); cursor: pointer; }
+  #replay-bar button:hover { background: #3d2b17; }
+  #replay-mode { color: var(--gold); }
+  #replay-status { color: #a08f6d; }
+
+  /* ---- Parchment decision overlay ----
+     A scrim dims the world behind it so the decision reads clearly on
+     camera, and the parchment scales in so the cut is obvious in a recording. */
+  #scrim {
+    display: none; position: fixed; inset: 0; background: rgba(5, 3, 2, 0.62);
+    z-index: 15; pointer-events: none;
   }
-  #parchment-message { font-size: 15px; font-weight: bold; line-height: 1.45; margin-bottom: 18px; }
+  #scrim.on { display: block; }
+  /* The dcss parchment icons are only 32x32 and turn to mush when stretched
+     to dialog size, so the panel uses Kenney's 9-slice frames instead --
+     they scale crisply to any size. */
+  #parchment-overlay {
+    display: none; position: fixed; top: 50%; left: 50%;
+    width: min(640px, 88vw); min-height: 250px;
+    color: #3b2a14; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 46px; box-sizing: border-box; text-align: center; z-index: 20; pointer-events: auto;
+    background-color: #f2e4c2;
+    border-style: solid;
+    border-width: 26px;
+    border-image-source: url("/assets/ui/scroll/scroll_bg.png");
+    border-image-slice: 40 fill;
+    border-image-width: 26px;
+    border-image-repeat: stretch;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 12px 30px rgba(0,0,0,.75));
+    transform: translate(-50%, -50%) scale(0.86);
+    animation: parchment-in 260ms ease-out forwards;
+  }
+  /* Exception branch: same scroll, scorched. */
+  #parchment-overlay.exception {
+    background-color: #e8cdaa;
+    filter: drop-shadow(0 12px 30px rgba(0,0,0,.75)) sepia(0.5) saturate(1.5) hue-rotate(-18deg);
+  }
+  #parchment-overlay.exception #parchment-message { color: #6d1b12; }
+  @keyframes parchment-in {
+    from { transform: translate(-50%, -50%) scale(0.86); opacity: 0; }
+    to   { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+  }
+  #parchment-message { font-size: 18px; font-weight: bold; line-height: 1.5; margin-bottom: 22px; }
   #parchment-choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   #parchment-choices button {
-    font-family: "Courier New", monospace; font-size: 13px; padding: 9px 16px;
+    font-family: "Courier New", monospace; font-size: 14px; font-weight: bold; padding: 11px 20px;
     border-radius: 3px; border: 2px solid #6b4a24; background: #d9c79b; color: #2b1d0e; cursor: pointer;
+    box-shadow: 0 2px 0 #6b4a24;
   }
   #parchment-choices button:hover { background: #efe0b6; }
 </style>
@@ -112,8 +152,16 @@
 
   <div id="log" class="panel"></div>
   <div id="mode-badge" class="panel {{ 'owner' if owner else 'readonly' }}">{{ 'GAMER MODE -- THIS VIEW DECIDES' if owner else 'DEVELOPER MODE -- READ-ONLY MIRROR' }}</div>
+
+  <div id="replay-bar" class="panel">
+    <span id="replay-mode">LIVE</span>
+    <button id="replay-pause">PAUSE</button>
+    <button id="replay-restart">RESTART</button>
+    <span id="replay-status">0/0</span>
+  </div>
 </div>
 
+<div id="scrim"></div>
 <div id="parchment-overlay">
   <div id="parchment-message"></div>
   <div id="parchment-choices"></div>

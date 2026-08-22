@@ -701,6 +701,13 @@ class PathTraversalDetector(VulnerabilityDetector):
         return False
 
 
+# Directories HUNTER never walks: our own workspace/tooling, plus reference
+# copies of other people's repositories that happen to sit inside the tree.
+SKIP_DIRECTORIES = {
+    ".yata", ".git", ".venv", "__pycache__",
+    "yata-nishant", "_mutator_agent_backup", "node_modules",
+}
+
 _ENTRY_POINT_NAMES = {"app.py", "main.py", "wsgi.py"}
 _CONFIG_NAME_PATTERN = re.compile(r"config|secret|settings", re.IGNORECASE)
 _SECRET_ASSIGNMENT_PATTERN = re.compile(r"\b[A-Z_]*(SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=")
@@ -772,7 +779,7 @@ class RedAgent:
         findings: list[VulnerabilityFinding] = []
         repo_map: list[dict[str, object]] = []
         for source_file in target_root.rglob("*.py"):
-            if any(part in (".yata", ".git", ".venv", "__pycache__") for part in source_file.parts):
+            if any(part in SKIP_DIRECTORIES for part in source_file.parts):
                 continue
             for detector in self.detectors:
                 detector_findings = detector.scan(source_file)
