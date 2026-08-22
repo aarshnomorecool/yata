@@ -60,6 +60,7 @@ const ROOF_TINT = {
 };
 
 const LPC_IDLE = 130;
+const DRAGON_FRAMES = 27;
 
 // Events are applied from a paced queue rather than all at once. On a live
 // run a finding and its patch outcome can arrive in the same poll, which
@@ -190,9 +191,20 @@ function preload() {
     this.load.image(`lava${i}`, `${dg}/floor/lava0${i}.png`);
   }
   this.load.image("column", `${dg}/statues/depths_column.png`);
+  this.load.image("column1", `${dg}/statues/crumbled_column_1.png`);
+  this.load.image("column2", `${dg}/statues/crumbled_column_2.png`);
   this.load.image("statue", `${dg}/statues/metal_statue.png`);
+  this.load.image("statue_archer", `${dg}/statues/statue_archer.png`);
+  this.load.image("statue_dragon", `${dg}/statues/statue_dragon.png`);
+  this.load.image("statue_sword", `${dg}/statues/statue_sword.png`);
   this.load.image("fountain", `${dg}/decor/sparkling_fountain.png`);
+  this.load.image("fountain_blue", `${dg}/decor/blue_fountain.png`);
+  this.load.image("fountain_dry", `${dg}/decor/dry_fountain.png`);
   this.load.image("altar", `${dg}/altars/ecumenical.png`);
+  this.load.image("altar_oka", `${dg}/altars/okawaru.png`);
+  this.load.image("portal", `${dg}/gateways/enter_gehenna1.png`);
+
+  // The dragon's frames are deliberately NOT loaded here -- see drawBoss().
 
   const bd = "/assets/buildings";
   this.load.image("b_townhall", `${bd}/dungeon_townhall.png`);
@@ -252,23 +264,81 @@ function drawEnvironment(sc) {
     },
   });
 
-  // Torch placeholders along the wall -- glow only, real torch art pending.
+  // Wall torches: a flame over a glow that flickers out of phase per torch,
+  // so the backdrop reads as lit rather than a row of identical dots.
   for (let x = -bleed + 120; x < w + bleed; x += 240) {
-    const glow = sc.add.circle(x, WALL_H - 96, 16, 0xffb347, 0.5);
-    sc.tweens.add({ targets: glow, alpha: 0.16, scale: 1.25, duration: 900, yoyo: true, repeat: -1 });
-    sc.add.circle(x, WALL_H - 96, 5, 0xfff0b0, 0.95);
+    const y = WALL_H - 96;
+    const glow = sc.add.circle(x, y, 30, 0xff961e, 0.2);
+    sc.tweens.add({
+      targets: glow, alpha: 0.07, scale: 1.3,
+      duration: 620 + (x % 7) * 55, yoyo: true, repeat: -1, ease: "Sine.easeInOut",
+    });
+    const flame = sc.add.rectangle(x, y - 5, 4, 7, 0xffd700);
+    const tip = sc.add.rectangle(x, y - 11, 2, 4, 0xef4444);
+    sc.tweens.add({
+      targets: [flame, tip], scaleY: 1.45,
+      duration: 190 + (x % 5) * 32, yoyo: true, repeat: -1, ease: "Sine.easeInOut",
+    });
   }
 
-  // Ambient dressing stands on the walkway, kept right of the agent roster.
+  // Ambient dressing, kept clear of the agent roster on the left.
   const walkY = walkwayY + WALKWAY_H - 8;
-  sc.add.image(w * 0.60, walkY, "statue").setOrigin(0.5, 1).setScale(1.4);
-  sc.add.image(w * 0.72, walkY, "fountain").setOrigin(0.5, 1).setScale(1.4);
-  sc.add.image(w * 0.84, walkY, "altar").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.56, walkY, "statue_sword").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.64, walkY, "fountain").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.72, walkY, "statue_archer").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.80, walkY, "altar").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.88, walkY, "altar_oka").setOrigin(0.5, 1).setScale(1.4);
+  sc.add.image(w * 0.30, FLOOR_TOP + 20, "column1").setOrigin(0.5, 0).setScale(1.3);
+  sc.add.image(w * 0.66, FLOOR_TOP + 20, "column2").setOrigin(0.5, 0).setScale(1.3);
+  sc.add.image(w * 0.14, walkY, "fountain_dry").setOrigin(0.5, 1).setScale(1.3);
   for (let x = -bleed + 80; x < w + bleed; x += 300) {
     sc.add.image(x, FLOOR_TOP + 6, "column").setOrigin(0.5, 0).setScale(1.3).setAlpha(0.8);
   }
 
+  // The rift the threats come from, anchoring the boss end of the map.
+  const portalX = w - 110;
+  sc.add.image(portalX, walkY - 6, "portal").setOrigin(0.5, 1).setScale(2.0);
+  sc.add.text(portalX, walkY + 4, "GEHENNA RIFT", {
+    fontFamily: "Courier New", fontSize: "10px", color: "#ef4444",
+  }).setOrigin(0.5, 0);
+
   return { width: w, height: h, walkwayY };
+}
+
+// The boss guards the rift end of the map. Its frames are several megabytes,
+// so they load AFTER the scene is on screen -- blocking preload on them left
+// the whole map blank while they streamed in. A static dragon stands in until
+// the loop is ready, then it swaps to the animation in place.
+function drawBoss(sc, bounds) {
+  const x = bounds.width - 240;
+  const y = bounds.walkwayY + WALKWAY_H - 8;
+
+  sc.add.ellipse(x, y + 3, 130, 20, 0x000000, 0.4).setDepth(1);
+  const boss = sc.add.sprite(x, y, "boss").setOrigin(0.5, 1).setDepth(2);
+  scaleToHeight(boss, 150);
+  sc.add.text(x, y + 8, "THREAT LORD", {
+    fontFamily: "Courier New", fontSize: "10px", color: "#0d0a07",
+    backgroundColor: "#ef4444", padding: { x: 4, y: 1 },
+  }).setOrigin(0.5, 0).setDepth(3);
+
+  for (let i = 0; i < DRAGON_FRAMES; i++) {
+    sc.load.image(`dragon${i}`, `/assets/monsters/dragon_idle/frame${String(i).padStart(3, "0")}.png`);
+  }
+  sc.load.once("complete", () => {
+    if (!sc.textures.exists(`dragon${DRAGON_FRAMES - 1}`)) return;
+    if (!sc.anims.exists("dragon_idle")) {
+      sc.anims.create({
+        key: "dragon_idle",
+        frames: Array.from({ length: DRAGON_FRAMES }, (_, i) => ({ key: `dragon${i}` })),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    boss.setTexture("dragon0");
+    scaleToHeight(boss, 150);
+    boss.play("dragon_idle");
+  });
+  sc.load.start();
 }
 
 function drawAgents(sc, walkwayY) {
@@ -467,6 +537,8 @@ function applyEvent(sc, evt) {
     stats.threats.push({
       type: evt.vulnerability_type, severity: evt.severity || "UNKNOWN",
       file: evt.file, line: evt.line_number, healed: false,
+      payload: evt.payload || null, round: evt.round,
+      strategy: null, battery: null, evidence: null,
     });
   } else if (evt.event_type === "patch_outcome") {
     if (evt.succeeded) {
@@ -479,16 +551,77 @@ function applyEvent(sc, evt) {
       }
     }
   } else if (evt.event_type === "step_shown") {
-    if (evt.step === 4 && typeof evt.score_after === "number") stats.score = evt.score_after;
-    if (evt.step === 3 && evt.battery_total > 0 && evt.battery_blocked < evt.battery_total && activeFindingFile) {
-      flashBypass(sc, activeFindingFile);
+    const current = currentThreat(evt.round);
+    if (evt.step === 1 && current) {
+      if (evt.payload) current.payload = evt.payload;
+      if (evt.evidence) current.evidence = evt.evidence;
     }
+    if (evt.step === 2 && current && evt.strategy) current.strategy = evt.strategy;
+    if (evt.step === 3) {
+      if (current && typeof evt.battery_total === "number") {
+        current.battery = evt.battery_total === 0
+          ? "skipped (presence check, no payload shape)"
+          : `${evt.battery_blocked}/${evt.battery_total} known bypasses blocked`;
+      }
+      if (evt.battery_total > 0 && evt.battery_blocked < evt.battery_total && activeFindingFile) {
+        flashBypass(sc, activeFindingFile);
+      }
+    }
+    if (evt.step === 4 && typeof evt.score_after === "number") stats.score = evt.score_after;
     if (evt.step === "3-exception" && activeFindingFile) flashBypass(sc, activeFindingFile);
   }
 
   renderThreats();
   renderStats();
+  renderDossier();
   drawMinimap();
+}
+
+function currentThreat(round) {
+  for (let i = stats.threats.length - 1; i >= 0; i--) {
+    if (round === undefined || stats.threats[i].round === round) return stats.threats[i];
+  }
+  return stats.threats[stats.threats.length - 1] || null;
+}
+
+// The dossier is the full evidence record: exactly what HUNTER proved, what
+// HEALER did about it, and what MUTATOR's battery found afterwards.
+function renderDossier() {
+  const body = document.getElementById("dossier-body");
+  if (!body) return;
+  if (!stats.threats.length) {
+    body.innerHTML = '<div class="empty">No findings confirmed yet.</div>';
+    return;
+  }
+  body.innerHTML = stats.threats.map((t) => `
+    <div class="dossier-entry${t.healed ? " healed" : ""}">
+      <div class="h">${t.healed ? "&#10003; RESOLVED" : "&#10007; ACTIVE"} &mdash; ${t.type}</div>
+      <div class="kv">Location: <b>${t.file}:${t.line}</b></div>
+      <div class="kv">Severity: <b>${t.severity}</b> &nbsp; Bounty: <b>+${bountyFor(t.type)} XP</b></div>
+      ${t.payload ? `<div class="kv">Proven with: <code>${escapeHtml(t.payload)}</code></div>` : ""}
+      ${t.strategy ? `<div class="kv">Patch strategy: <b>${t.strategy}</b></div>` : ""}
+      ${t.battery ? `<div class="kv">MUTATOR battery: <b>${t.battery}</b></div>` : ""}
+    </div>`).join("");
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+function setupDossier() {
+  const panel = document.getElementById("dossier-panel");
+  const toggle = () => {
+    panel.classList.toggle("open");
+    if (panel.classList.contains("open")) renderDossier();
+  };
+  const dossierBtn = document.getElementById("dossier");
+  const badge = document.getElementById("guild-badge");
+  const closeBtn = document.getElementById("dossier-close");
+  if (dossierBtn) dossierBtn.onclick = toggle;
+  if (badge) badge.onclick = toggle;
+  if (closeBtn) closeBtn.onclick = (e) => { e.stopPropagation(); panel.classList.remove("open"); };
 }
 
 function enqueueEvents(events) {
@@ -515,11 +648,18 @@ function resetSceneState() {
   Object.values(buildingIndex).forEach((b) => {
     if (b.demon) { b.demon.destroy(); b.demon = null; }
     if (b.overlay) { b.overlay.destroy(); b.overlay = null; }
+    // A replay restart must also rebuild anything left ruined by the last pass.
+    if (b.sprite && b.artKey) {
+      b.sprite.setTexture(b.artKey);
+      scaleToHeight(b.sprite, b.height);
+      b.sprite.setAlpha(1);
+    }
   });
   activeFindingFile = null;
   document.getElementById("log").innerHTML = "";
   renderThreats();
   renderStats();
+  renderDossier();
   drawMinimap();
 }
 
@@ -597,8 +737,7 @@ function create() {
   const bounds = drawEnvironment(this);
   drawVillage(this, initial);
   drawAgents(this, bounds.walkwayY);
-  this.add.image(worldWidth() - 120, bounds.walkwayY + WALKWAY_H - 8, "boss")
-    .setOrigin(0.5, 1).setScale(1.7).setDepth(2);
+  drawBoss(this, bounds);
   fitCamera(this, bounds);
 
   ["xp", "heal", "shield"].forEach((name) => {
@@ -618,6 +757,8 @@ function create() {
   cursor = initial.cursor || 0;
 
   setupReplayControls();
+  setupDossier();
+  renderDossier();
 
   setInterval(async () => {
     try {

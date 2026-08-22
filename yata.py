@@ -320,6 +320,7 @@ def assess_entrypoint(args: argparse.Namespace) -> int:
             quiet=args.quiet,
             multi_repo=(len(repository_roots) > 1),
             ui=args.ui,
+            allow_fixture_apply=args.allow_fixture_apply,
         )
         summaries.append(summary)
 
@@ -417,6 +418,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     assess_parser.add_argument("--live", action="store_true", help="Enable live feedback mode (future feature placeholder)")
     assess_parser.add_argument("--quiet", action="store_true", help="Run in quiet mode (future feature placeholder)")
     assess_parser.add_argument(
+        "--allow-fixture-apply", action="store_true",
+        help="Allow writing patches back into YATA's own bundled vulnerable fixtures "
+             "(test_repositories/, vulnerable_app/). They are protected by default because "
+             "patching them destroys the demo.",
+    )
+    assess_parser.add_argument(
         "--ui", choices=["terminal", "game"], default="terminal",
         help="terminal (default): terminal owns input, a separately-opened `yata game` view only mirrors. "
              "game: opens a browser game view; in --interactive mode that view owns the four-step decisions.",
@@ -502,6 +509,7 @@ def _run_repository(
     quiet: bool = False,
     multi_repo: bool = False,
     ui: str = "terminal",
+    allow_fixture_apply: bool = False,
 ) -> RepositoryRunSummary:
     global console
     console = Console(record=True)
@@ -537,6 +545,7 @@ def _run_repository(
     referee = Referee()
     mutator = MutatorAgent(referee)
     target_root = repository_root.resolve()
+    fixture_protected = _is_bundled_fixture(target_root) and not allow_fixture_apply
 
     project_root = Path(__file__).resolve().parent
     yata_dir = project_root / ".yata"
@@ -758,9 +767,19 @@ def _run_repository(
 
                 if patch_succeeded:
                     healed_count += 1
-                    _apply_patch_to_original(target_root, patch_result)
-                    current_root = target_root
-                    patch_applied = True
+                    if fixture_protected:
+                        console.print(Panel(
+                            "[bold yellow]Bundled fixture protected[/bold yellow]\n\n"
+                            "This repository ships intentionally vulnerable for demos, so the verified\n"
+                            "patch was NOT written back into it. The patched copy is in .yata/patches/.\n"
+                            "Pass --allow-fixture-apply to override.",
+                            border_style="yellow", expand=True,
+                        ))
+                        current_root = patch_result.patched_root
+                    else:
+                        _apply_patch_to_original(target_root, patch_result)
+                        current_root = target_root
+                        patch_applied = True
 
                     start_disc = time.time()
                     remaining_findings = red_agent.scan(current_root)
@@ -850,7 +869,13 @@ def _run_repository(
                     destination_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(source_path, destination_path)
 
-                apply_verified = mode == "apply"
+                apply_verified = mode == "apply" and not fixture_protected
+
+                if mode == "apply" and fixture_protected:
+                    console.print(
+                        "[bold yellow][YATA][/bold yellow] Bundled fixture protected: patch kept in "
+                        ".yata/patches/ instead of being written back. Use --allow-fixture-apply to override.\n"
+                    )
 
                 if apply_verified:
                     if verbose:
@@ -1238,6 +1263,27 @@ def _start_game_view(console: Console, project_root: Path, repo_name: str, *, ow
 def _write_repo_map(red_agent: RedAgent, repo_map_dir: Path) -> None:
     repo_map_file = repo_map_dir / "repo_map.json"
     repo_map_file.write_text(json.dumps(red_agent.repo_map, indent=2), encoding="utf-8")
+
+
+def _is_bundled_fixture(target_root: Path) -> bool:
+    """True when the target is one of YATA's own bundled vulnerable fixtures.
+
+    Applying a patch into these silently destroys the demo: the repository
+    stops being exploitable, so the next run finds nothing. CLAUDE.md's
+    Golden Rule 3 says they stay vulnerable in version control.
+    """
+    project_root = Path(__file__).resolve().parent
+    protected_roots = [project_root / "test_repositories", project_root / "vulnerable_app"]
+    resolved = target_root.resolve()
+    for protected in protected_roots:
+        try:
+            resolved.relative_to(protected.resolve())
+            return True
+        except ValueError:
+            continue
+        except OSError:
+            continue
+    return resolved == (project_root / "vulnerable_app").resolve()
 
 
 def _apply_patch_to_original(target_root: Path, patch_result: PatchResult) -> None:

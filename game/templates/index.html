@@ -71,6 +71,22 @@
   #replay-mode { color: var(--gold); }
   #replay-status { color: #a08f6d; }
 
+  /* ---- Dossier: the full evidence record for every confirmed finding ---- */
+  #dossier-panel {
+    display: none; position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
+    width: min(680px, 80vw); max-height: 68vh; overflow-y: auto; pointer-events: auto; z-index: 12;
+  }
+  #dossier-panel.open { display: block; }
+  #dossier-close { float: right; cursor: pointer; color: var(--gold); padding: 0 4px; }
+  #dossier-body { padding: 8px 12px 12px; font-size: 11px; line-height: 1.55; }
+  .dossier-entry { border-left: 3px solid #b23b3b; padding: 7px 10px; margin: 8px 0; background: rgba(60,20,20,.3); }
+  .dossier-entry.healed { border-left-color: #4f9e4f; background: rgba(20,50,20,.28); }
+  .dossier-entry .h { color: #ff8a7a; font-size: 12px; }
+  .dossier-entry.healed .h { color: #90e08a; }
+  .dossier-entry .kv { color: #a08f6d; }
+  .dossier-entry .kv b { color: #e0cfa4; font-weight: normal; }
+  .dossier-entry code { color: #f0c246; word-break: break-all; }
+
   /* ---- Parchment decision overlay ----
      A scrim dims the world behind it so the decision reads clearly on
      camera, and the parchment scales in so the cut is obvious in a recording. */
@@ -143,6 +159,11 @@
     <div class="chip panel"><img id="icon-heal" alt=""><span id="stat-healed">0/0</span></div>
     <div class="chip panel"><img id="icon-shield" alt=""><span id="stat-score">--</span></div>
     <div id="dossier" class="panel">DOSSIER</div>
+  </div>
+
+  <div id="dossier-panel" class="panel">
+    <div class="panel-title"><span id="dossier-close">&#10005;</span>THREAT DOSSIER</div>
+    <div id="dossier-body"></div>
   </div>
 
   <div id="minimap-wrap" class="panel">
