@@ -4,10 +4,12 @@
 // declared owner (gamer mode), forwards a click to /api/decision. All
 // four-step decision logic lives in interactive_flow.py's state machine.
 
-const CELL = 96;
-const BUILDING_SIZE = 64;
-const OUTPOST_HEIGHT = 170;
-const VILLAGE_TOP = OUTPOST_HEIGHT + 50;
+const CELL = 96;            // must match game/layout.py GRID_CELL_SIZE
+const TILE = 48;            // on-screen size of one Kenney 64x64 tile
+const SPACING_X = 140;      // horizontal gap between building slots
+const SPACING_Y = 172;      // vertical gap (buildings are 2 tiles tall + label)
+const OUTPOST_HEIGHT = 190;
+const VILLAGE_TOP = OUTPOST_HEIGHT + 56;
 
 const TIER_SPRITES = {
   imp: "monster_imp",
@@ -15,13 +17,32 @@ const TIER_SPRITES = {
   demon: "monster_demon",
 };
 
-const BUILDING_COLORS = {
-  "Townhall": 0xb08d57,
-  "Market Stall": 0x6fa8dc,
-  "The Vault": 0x8e7cc3,
-  "Strongbox": 0xd9a441,
-  "Guild Hall": 0x76a5af,
-  "House": 0x93795c,
+// Buildings are composed from Kenney RPG-pack tiles: a roof tile stacked on
+// a wall tile, with a door on the wall. Roof/wall/door vary per
+// building_type so the six types read apart at a glance.
+const BUILDING_STYLE = {
+  "Townhall":     { roof: "roof_white", wall: "wall_stone", door: "door_double" },
+  "Market Stall": { roof: "roof_brown", wall: "wall_beige", door: "door_wood" },
+  "The Vault":    { roof: "roof_dark",  wall: "wall_stone", door: "door_dark" },
+  "Strongbox":    { roof: "roof_steel", wall: "wall_stone", door: "door_plain" },
+  "Guild Hall":   { roof: "roof_dark",  wall: "wall_beige", door: "door_wood" },
+  "House":        { roof: "roof_brown", wall: "wall_beige", door: "door_plain" },
+};
+const DEFAULT_STYLE = BUILDING_STYLE["House"];
+
+// Kenney RPGpack tile numbers, identified from the pack's own contact sheet.
+const TILE_FILES = {
+  grass:       "003",
+  wall_beige:  "048",
+  wall_stone:  "061",
+  roof_brown:  "122",
+  roof_dark:   "130",
+  roof_white:  "144",
+  roof_steel:  "153",
+  door_wood:   "189",
+  door_plain:  "210",
+  door_dark:   "209",
+  door_double: "214",
 };
 
 const LPC_FRAMES = {
@@ -73,9 +94,13 @@ function buildingKeyFor(filename) {
 }
 
 function layoutBuilding(entry) {
+  // layout.py spaces slots by CELL; convert those to on-screen spacing that
+  // fits a 2-tile-tall building plus its labels.
+  const col = entry.x / CELL;
+  const row = entry.y / CELL;
   return {
-    x: 60 + entry.x,
-    y: VILLAGE_TOP + entry.y,
+    x: 60 + col * SPACING_X,
+    y: VILLAGE_TOP + row * SPACING_Y,
   };
 }
 
@@ -89,6 +114,38 @@ function preload() {
   this.load.image("monster_hobgoblin", "/assets/monsters/tier2_orc/dcss_orcs/orc.png");
   this.load.image("monster_demon", "/assets/monsters/tier3_troll/dcss_trolls_ogres/ogre.png");
   this.load.image("fire_overlay", "/assets/ui/dcss_icons/spell_icons/fireball.png");
+
+  const tileBase = "/assets/environment/town/kenney_rpg_pack/PNG/rpgTile";
+  Object.entries(TILE_FILES).forEach(([key, number]) => {
+    this.load.image(key, `${tileBase}${number}.png`);
+  });
+}
+
+// Grass ground under the whole scene, so the map reads as a place rather
+// than sprites floating on a flat background.
+function contentBounds(entries) {
+  let width = 1000;
+  let height = VILLAGE_TOP + 180;
+  entries.forEach((entry) => {
+    const col = entry.x / CELL;
+    const row = entry.y / CELL;
+    width = Math.max(width, 60 + col * SPACING_X + TILE + 80);
+    height = Math.max(height, VILLAGE_TOP + row * SPACING_Y + TILE * 2 + 80);
+  });
+  return { width, height };
+}
+
+function drawGround(sc, initial) {
+  const entries = initial.village || [];
+  const bounds = contentBounds(entries);
+  // Overdraw well past the content so grass still fills the viewport when the
+  // village is narrow (a repo with few files) or when the camera is panned.
+  const width = bounds.width + 2400;
+  const height = bounds.height + 1600;
+  sc.add.tileSprite(-1200, -800, width, height, "grass").setOrigin(0, 0).setTileScale(TILE / 64, TILE / 64);
+
+  // Darken the Outpost band so it separates from the Village below.
+  sc.add.rectangle(-1200, -800, width, OUTPOST_HEIGHT + 800, 0x14100c, 0.55).setOrigin(0, 0);
 }
 
 function drawOutpost(sc) {
@@ -121,20 +178,29 @@ function drawVillage(sc, initial) {
   edges = initial.edges || [];
   buildingIndex = {};
 
-  sc.add.text(20, VILLAGE_TOP - 26, "THE VILLAGE", { fontFamily: "monospace", fontSize: "14px", color: "#e8dcc4" });
+  sc.add.text(20, VILLAGE_TOP - 30, "THE VILLAGE", { fontFamily: "monospace", fontSize: "14px", color: "#e8dcc4" });
 
   village.forEach((entry) => {
     const pos = layoutBuilding(entry);
-    const color = BUILDING_COLORS[entry.building_type] || 0x77675a;
-    const rect = sc.add.rectangle(pos.x + BUILDING_SIZE / 2, pos.y + BUILDING_SIZE / 2, BUILDING_SIZE, BUILDING_SIZE, color)
-      .setStrokeStyle(2, 0x14100c);
-    sc.add.text(pos.x, pos.y + BUILDING_SIZE + 2, entry.filename.split("/").pop(), { fontFamily: "monospace", fontSize: "9px", color: "#cbb98f" }).setOrigin(0, 0);
-    sc.add.text(pos.x, pos.y - 12, entry.building_type, { fontFamily: "monospace", fontSize: "9px", color: "#8f8266" }).setOrigin(0, 0);
+    const style = BUILDING_STYLE[entry.building_type] || DEFAULT_STYLE;
+
+    // Roof tile stacked on a wall tile, door centred on the wall.
+    const roofY = pos.y;
+    const wallY = pos.y + TILE;
+    sc.add.image(pos.x, roofY, style.roof).setOrigin(0, 0).setDisplaySize(TILE, TILE);
+    sc.add.image(pos.x, wallY, style.wall).setOrigin(0, 0).setDisplaySize(TILE, TILE);
+    sc.add.image(pos.x + TILE / 2, wallY + TILE, style.door)
+      .setOrigin(0.5, 1)
+      .setDisplaySize(TILE * 0.5, TILE * 0.62);
+
+    sc.add.text(pos.x + TILE / 2, pos.y - 22, entry.building_type, { fontFamily: "monospace", fontSize: "10px", color: "#a08f6d" }).setOrigin(0.5, 0);
+    sc.add.text(pos.x + TILE / 2, wallY + TILE + 4, entry.filename.split(/[\\/]/).pop(), { fontFamily: "monospace", fontSize: "10px", color: "#e0cfa4" }).setOrigin(0.5, 0);
 
     buildingIndex[buildingKeyFor(entry.filename)] = {
-      x: pos.x + BUILDING_SIZE / 2,
-      y: pos.y + BUILDING_SIZE / 2,
-      rect,
+      x: pos.x + TILE / 2,
+      y: pos.y + TILE,          // centre of the 2-tile-tall building
+      top: pos.y,
+      bottom: wallY + TILE,
       demon: null,
       overlay: null,
     };
@@ -145,16 +211,44 @@ function drawVillage(sc, initial) {
     const from = buildingIndex[edge.from];
     const to = buildingIndex[edge.to];
     if (!from || !to) return;
-    const villager = sc.add.circle(from.x, from.y - 40, 5, 0xd9c79b);
+    const villager = sc.add.circle(from.x, from.bottom + 12, 4, 0xf0e0b8).setStrokeStyle(1, 0x4a3620);
     sc.tweens.add({
       targets: villager,
       x: to.x,
-      y: to.y - 40,
+      y: to.bottom + 12,
       duration: 2600 + Math.random() * 800,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
     });
+  });
+}
+
+// Fit the scene into view. A one-file repo used to leave its single building
+// stranded in a corner; scanning a large repo (many single-file directories,
+// each starting its own row per the layout rule) makes a tall narrow map that
+// would zoom out to something unreadable. So clamp the zoom to a legible
+// range and let the viewer pan/wheel around anything that doesn't fit.
+function fitCamera(sc) {
+  const bounds = contentBounds(village);
+  const cam = sc.cameras.main;
+  const raw = Math.min(cam.width / bounds.width, cam.height / bounds.height);
+  const zoom = Math.max(0.55, Math.min(raw, 1.4));
+  cam.setZoom(zoom);
+  cam.centerOn(bounds.width / 2, Math.min(bounds.height / 2, cam.height / zoom / 2));
+  enableCameraControls(sc);
+}
+
+function enableCameraControls(sc) {
+  const cam = sc.cameras.main;
+  sc.input.on("pointermove", (pointer) => {
+    if (!pointer.isDown) return;
+    cam.scrollX -= (pointer.x - pointer.prevPosition.x) / cam.zoom;
+    cam.scrollY -= (pointer.y - pointer.prevPosition.y) / cam.zoom;
+  });
+  sc.input.on("wheel", (pointer, over, dx, dy) => {
+    const next = Phaser.Math.Clamp(cam.zoom - dy * 0.0012, 0.3, 2.4);
+    cam.setZoom(next);
   });
 }
 
@@ -167,8 +261,15 @@ function spawnDemon(sc, filename, vulnerabilityType, tierMap) {
   if (building.demon) building.demon.destroy();
   if (building.overlay) building.overlay.destroy();
 
-  building.demon = sc.add.image(building.x - 18, building.y - 18, spriteKey).setScale(1.2);
-  building.overlay = sc.add.image(building.x, building.y, "fire_overlay").setScale(0.8).setAlpha(0.85);
+  // Demon stands beside the building; one generic fire overlay sits on it.
+  building.demon = sc.add.image(building.x + TILE * 0.72, building.bottom - 10, spriteKey)
+    .setOrigin(0.5, 1)
+    .setDisplaySize(38, 38);
+  building.overlay = sc.add.image(building.x, building.y + 6, "fire_overlay")
+    .setOrigin(0.5, 0.5)
+    .setDisplaySize(TILE * 0.95, TILE * 0.95)
+    .setAlpha(0.9);
+  sc.tweens.add({ targets: building.overlay, alpha: 0.55, duration: 620, yoyo: true, repeat: -1 });
   activeFindingFile = filename;
 }
 
@@ -246,8 +347,10 @@ function renderPending(pending) {
 
 function create() {
   scene = this;
+  drawGround(this, window.__yataInitial);
   drawOutpost(this);
   drawVillage(this, window.__yataInitial);
+  fitCamera(this);
   applyEvents(this, window.__yataInitial.events || [], window.__yataInitial.tier_map || {});
   renderPending(window.__yataInitial.pending);
   cursor = window.__yataInitial.cursor || 0;
@@ -269,7 +372,7 @@ function bootstrap() {
     .then((res) => res.json())
     .then((initial) => {
       window.__yataInitial = initial;
-      new Phaser.Game({
+      window.__yataGame = new Phaser.Game({
         type: Phaser.AUTO,
         parent: "game-root",
         width: window.innerWidth,

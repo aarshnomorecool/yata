@@ -12,10 +12,14 @@ def build_village_layout(repo_map: list[dict]) -> list[dict]:
     subfolder's files are offset onto their own row(s)). A plain for-loop,
     deliberately not force-directed / physics-based.
     """
-    sorted_entries = sorted(
-        repo_map,
-        key=lambda entry: PurePosixPath(str(entry["filename"]).replace("\\", "/")).parts,
-    )
+    def sort_key(entry: dict) -> tuple:
+        parts = PurePosixPath(str(entry["filename"]).replace("\\", "/")).parts
+        # Group by directory FIRST, then filename. Sorting on the raw path
+        # parts would interleave "core/engine.py" between "config.py" and
+        # "db.py", splitting the root directory across several rows.
+        return (parts[:-1], parts[-1])
+
+    sorted_entries = sorted(repo_map, key=sort_key)
 
     positioned: list[dict] = []
     current_directory: tuple[str, ...] | None = None
