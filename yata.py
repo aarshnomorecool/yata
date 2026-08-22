@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import sys
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import argparse
 import json
 import shutil
-import sys
 import time
 import re
 from dataclasses import dataclass
@@ -407,7 +414,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Maximum number of attack/patch/verify rounds before stopping",
     )
     assess_parser.add_argument("--verbose", action="store_true", help="Display verbose debugging information")
-    assess_parser.add_argument("--live", action="store_true", help="Enable live feedback mode (future feature placeholder)")
+    assess_parser.add_argument("--live", action="store_true", help="Open the live dungeon dashboard at http://127.0.0.1:5050 and mirror this run onto it")
     assess_parser.add_argument("--quiet", action="store_true", help="Run in quiet mode (future feature placeholder)")
 
     # 2. discover
@@ -515,6 +522,22 @@ def _run_repository(
 
     referee = Referee()
     target_root = repository_root.resolve()
+
+    dashboard = None
+    if live:
+        import webbrowser
+        import dashboard as dashboard_module
+        dashboard = dashboard_module
+        dashboard.start_dashboard()
+        time.sleep(0.5)
+        dashboard_url = "http://127.0.0.1:5050"
+        if not quiet:
+            console.print(Panel(f"[bold magenta]Live dashboard:[/bold magenta] {dashboard_url}", border_style="magenta", expand=True))
+        try:
+            webbrowser.open(dashboard_url)
+        except Exception:
+            pass
+        dashboard.emit("scan_start", {"repo": repository_root.name})
 
     project_root = Path(__file__).resolve().parent
     yata_dir = project_root / ".yata"
@@ -652,7 +675,22 @@ def _run_repository(
             "LOW": "bold blue"
         }
         sev_color = severity_colors.get(severity, "bold white")
-        
+
+        if dashboard:
+            severity_tier = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(severity, 2)
+            rel_file = _clean_path(finding.metadata.get("relative_file", finding.affected_file))
+            dashboard.emit("spawn_monster", {
+                "tier": severity_tier,
+                "vuln": finding.vulnerability_type,
+                "severity": severity,
+                "file": rel_file,
+            })
+            dashboard.emit("agent_action", {
+                "agent": "hunter",
+                "action": "shoot",
+                "message": f"Testing payloads for {finding.vulnerability_type}...",
+            })
+
         if verbose:
             console.print(f"[bold red][HUNTER][/bold red] Prioritized weakness: [bold cyan]{finding.vulnerability_type}[/bold cyan]")
             console.print(f" └─ Severity:  [{sev_color}]{severity}[/{sev_color}]")
@@ -667,6 +705,13 @@ def _run_repository(
             if not multi_repo:
                 console.print(f"Location: {_clean_path(finding.metadata.get('relative_file', finding.affected_file))}:{finding.line_number}")
                 console.print(f"Severity: {severity}")
+
+        if dashboard:
+            dashboard.emit("agent_action", {
+                "agent": "healer",
+                "action": "spellcast",
+                "message": f"Generating secure patch for {finding.vulnerability_type}...",
+            })
 
         if verbose:
             console.print("[bold blue][HEALER][/bold blue] Generating secure patch...")
@@ -687,6 +732,13 @@ def _run_repository(
                 console.print()
                 console.print("HEALER      [bold green]✓[/bold green] Patch Generated\n")
 
+        if dashboard:
+            dashboard.emit("agent_action", {
+                "agent": "validator",
+                "action": "slash",
+                "message": f"Verifying patched {finding.vulnerability_type}...",
+            })
+
         if verbose:
             if LLMClient.execution_mode in ("autonomous_fallback", "demo"):
                 print("[VALIDATOR]")
@@ -697,6 +749,9 @@ def _run_repository(
         patched_check = referee.verify_exploit(patch_result.patched_root, finding, attack_plan.payload)
         t_validator_verification += time.time() - start_verify
         patch_succeeded = not patched_check.attack_succeeded
+
+        if dashboard and patch_succeeded:
+            dashboard.emit("monster_defeated", {"vuln": finding.vulnerability_type})
 
         if verbose:
             if LLMClient.execution_mode in ("autonomous_fallback", "demo"):

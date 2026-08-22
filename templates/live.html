@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YATA: Dungeon Security Fortress</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --guild-gold: #ffd700;
+            --guild-blue: #38bdf8;
+            --guild-purple: #c084fc;
+            --guild-red: #ef4444;
+            --guild-green: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0a0a0a;
+            font-family: 'Press Start 2P', monospace;
+            color: #ffffff;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            image-rendering: pixelated;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        /* HUD TOP BAR */
+        #city-hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 52px;
+            background: linear-gradient(180deg, rgba(10, 10, 10, 0.97) 0%, rgba(20, 15, 10, 0.92) 80%, rgba(10, 10, 10, 0) 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 100;
+            border-bottom: 2px solid #78350f;
+        }
+
+        .hud-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .guild-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #78350f;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+        .guild-badge:hover {
+            transform: scale(1.04);
+            border-color: var(--guild-gold);
+        }
+
+        .hud-icon { width: 20px; height: 20px; image-rendering: pixelated; }
+
+        .guild-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .g-name { font-size: 8px; color: var(--guild-gold); font-weight: bold; }
+        .g-sub { font-size: 6px; color: #a1947c; }
+
+        /* XP Progress */
+        .hud-xp-module {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 260px;
+        }
+        .xp-label-line {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 6px;
+            color: #a1947c;
+            margin-bottom: 2px;
+        }
+        .xp-bar-track {
+            width: 100%;
+            height: 14px;
+            background: #1a1008;
+            border: 2px solid #78350f;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .xp-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #b45309, #ffd700);
+            transition: width 0.4s ease;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        .xp-bar-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6px;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .hud-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-pill {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #78350f;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 7px;
+        }
+        .gold-pill { color: var(--guild-gold); border-color: rgba(255, 215, 0, 0.5); }
+        .elixir-pill { color: var(--guild-purple); border-color: rgba(192, 132, 252, 0.5); }
+        .threat-pill { color: var(--guild-red); border-color: rgba(239, 68, 68, 0.5); }
+
+        .hud-btn {
+            background: #1a1008;
+            border: 2px solid var(--guild-gold);
+            color: #ffd700;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 7px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .hud-btn:hover { background: #78350f; }
+
+        /* SIDEBARS */
+        #threat-board {
+            position: absolute;
+            top: 62px;
+            left: 16px;
+            width: 300px;
+            background-color: #0f0a06;
+            border: 3px solid #78350f;
+            border-radius: 4px;
+            padding: 12px;
+            z-index: 100;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            line-height: 1.5;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 5px 20px rgba(0,0,0,0.7);
+        }
+        .q-title { color: #ffd700; border-bottom: 2px dashed #78350f; padding-bottom: 6px; margin-bottom: 8px; font-weight: bold; }
+        .q-card { margin-bottom: 6px; padding: 6px; background: rgba(0,0,0,0.5); border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; }
+
+        #city-radar {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 160px;
+            height: 110px;
+            background: rgba(10, 15, 25, 0.85);
+            border: 3px solid #b45309;
+            border-radius: 4px;
+            z-index: 100;
+            cursor: pointer;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px #000, 0 5px 20px rgba(0,0,0,0.7);
+            transition: all 0.4s cubic-bezier(0.1, 0.8, 0.3, 1);
+        }
+        #city-radar:hover {
+            border-color: #ffd700;
+            box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.3), 0 5px 20px rgba(0,0,0,0.7);
+        }
+        #city-radar.radar-expanded {
+            top: 50%;
+            right: 50%;
+            width: 60vw;
+            height: 60vh;
+            transform: translate(50%, -50%);
+            border-width: 6px;
+            border-color: #ffd700;
+            z-index: 1500;
+            background: rgba(5, 10, 15, 0.95);
+        }
+        
+        
+
+        #city-terminal {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+            height: 65px;
+            background-color: #0f0a06;
+            border: 3px solid #78350f;
+            border-radius: 4px;
+            padding: 8px;
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            line-height: 1.6;
+            z-index: 90;
+            box-shadow: inset 0 0 15px #000, 0 8px 20px rgba(0,0,0,0.8);
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        #city-terminal:hover {
+            width: 520px;
+            height: 250px;
+            border: 3px solid #ffd700;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 7px;
+            box-shadow: inset 0 0 25px #000, 0 0 25px rgba(255, 215, 0, 0.3);
+        }
+        .term-row { margin-bottom: 8px; border-bottom: 1px dashed #333; padding-bottom: 4px; }
+        .term-ts { color: #666; }
+        .term-hunter { color: #e74c3c; text-shadow: 1px 1px 0 #000; }
+        .term-healer { color: #3498db; text-shadow: 1px 1px 0 #000; }
+        .term-validator { color: #2ecc71; text-shadow: 1px 1px 0 #000; }
+        .term-sys { color: #a1947c; text-shadow: 1px 1px 0 #000; }
+
+        /* PARCHMENT MODAL */
+        #scroll-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.88);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(6px);
+        }
+        /* Ancient Scroll Animation */
+        @keyframes unroll {
+            0% { clip-path: inset(0 0 100% 0); opacity: 0; }
+            5% { opacity: 1; }
+            100% { clip-path: inset(0 0 0 0); opacity: 1; }
+        }
+        @keyframes rollup {
+            0% { clip-path: inset(0 0 0 0); opacity: 1; }
+            95% { opacity: 1; }
+            100% { clip-path: inset(0 0 100% 0); opacity: 0; }
+        }
+
+        .parchment-scroll {
+            height: 80vh;
+            max-width: 90vw;
+            aspect-ratio: 4 / 5;
+            background-image: url('/raw_assets/scroll_bg.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-color: transparent;
+            padding: 10vh 8%; /* Percentage/vh based padding so text stays inside the scroll */
+            position: relative;
+            font-family: 'Press Start 2P', monospace;
+            overflow-y: auto;
+            overflow-x: hidden;
+            animation: unroll 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+            border: none;
+            box-shadow: none;
+            color: #3e2723;
+            image-rendering: pixelated;
+        }
+
+        /* Custom scrollbar to match the theme */
+        .parchment-scroll::-webkit-scrollbar {
+            width: 12px;
+        }
+        .parchment-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .parchment-scroll::-webkit-scrollbar-thumb {
+            background: #8b5a2b;
+            border: 2px solid #d4b886;
+        }
+        .parchment-scroll::-webkit-scrollbar-thumb:hover {
+            background: #5c3a21;
+        }
+
+        /* Remove the old pseudo-element rollers since the image has them */
+        .parchment-scroll::before, .parchment-scroll::after {
+            display: none;
+        }
+
+        .parchment-close {
+            position: absolute;
+            top: 60px;
+            right: 50px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
+            color: #fff;
+            cursor: pointer;
+            background: #991b1b;
+            border: 3px solid #ffd700;
+            padding: 4px 8px;
+            text-shadow: 2px 2px 0px #000;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            z-index: 50;
+            transition: all 0.1s;
+        }
+        .parchment-close:hover { background: #dc2626; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.5); }
+        .parchment-close:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+
+        .parchment-scroll h2 {
+            font-size: 12px;
+            text-align: center;
+            color: #3e2723;
+            text-shadow: none;
+            margin-bottom: 25px;
+            line-height: 1.8;
+            border-bottom: 2px dashed #a1887f;
+            padding-bottom: 10px;
+        }
+        .decree-box {
+            background: transparent;
+            border: none;
+            border-bottom: 4px dashed #a1887f;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            box-shadow: none;
+        }
+        .decree-h { display: flex; justify-content: space-between; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #4e342e; border-bottom: none; padding-bottom: 5px; margin-bottom: 8px; }
+        .decree-b { font-size: 7px; line-height: 2.0; color: #3e2723; font-family: 'Press Start 2P', monospace; text-transform: uppercase; }
+        .decree-f { display: inline-block; font-family: 'Press Start 2P', monospace; font-size: 7px; padding: 3px 6px; border-radius: 4px; background: #78350f; color: #fef08a; }
+        .decree-f.patched { background: #15803d; color: #fff; }
+
+        /* Floating Toast */
+                #toast-container {
+            position: absolute;
+            bottom: 70%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column; 
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            z-index: 300;
+            pointer-events: none;
+            width: 600px;
+        }
+        .f-toast {
+            font-size: 18px;
+            font-weight: bold;
+            animation: f-rise 2.5s forwards;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            text-align: center;
+        }
+        @keyframes f-rise {
+            0% { opacity: 0; transform: scale(0.5); }
+            10% { opacity: 1; transform: scale(1.2); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+            20% { opacity: 1; transform: translateY(-15px) scale(1.1); }
+            80% { opacity: 1; transform: translateY(-35px) scale(1); }
+            100% { opacity: 0; transform: translateY(-55px) scale(0.9); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Top HUD -->
+    <div id="toast-container"></div><div id="city-hud">
+        <div class="hud-left">
+            <div class="guild-badge" onclick="openRoyalDecrees()" title="Click to open Guild Hall Dossier">
+                <img class="hud-icon" src="/raw_assets/ui/dcss_icons/books/gold.png">
+                <div class="guild-meta">
+                    <div class="g-name" id="hud-th-name">GUILD HALL (LV.1)</div>
+                    <div class="g-sub">CLICK TO INSPECT VULNERABILITIES</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-xp-module">
+            <div class="xp-label-line">
+                <span id="hud-xp-lvl-text">LEVEL 1 GUILD</span>
+                <span id="hud-xp-ratio-text">0 / 250 XP</span>
+            </div>
+            <div class="xp-bar-track">
+                <div class="xp-bar-fill" id="hud-xp-fill-bar"></div>
+                <div class="xp-bar-text" id="hud-xp-pct-text">0%</div>
+            </div>
+        </div>
+
+        <div class="hud-right">
+            <div class="stat-pill gold-pill">
+                <img class="hud-icon" src="/raw_assets/ui/dcss_icons/books/gold.png">
+                <span id="stat-gold">2,450</span>
+            </div>
+            <div class="stat-pill elixir-pill">
+                <img class="hud-icon" src="/raw_assets/ui/dcss_icons/potions/magenta.png">
+                <span id="stat-elixir">980</span>
+            </div>
+            <div class="stat-pill threat-pill">
+                <img class="hud-icon" src="/raw_assets/ui/dcss_icons/shields/orb.png">
+                <span id="stat-threats">0/0</span>
+            </div>
+            <button class="hud-btn" onclick="openRoyalDecrees()">DOSSIER</button>
+        </div>
+    </div>
+
+    <!-- Threat Board -->
+    <div id="threat-board">
+        <div class="q-title">GUILD THREAT RAIDS</div>
+        <div id="quest-items-container">
+            <div style="color:#a1947c;">* All code frontiers secured. Awaiting scan *</div>
+        </div>
+    </div>
+
+    <!-- Mini Radar -->
+    <div id="city-radar">
+        <canvas id="radar-canvas" width="160" height="110"></canvas>
+    </div>
+
+    <!-- Telemetry Terminal -->
+    <div id="city-terminal">
+        <div style="font-family:'Press Start 2P', monospace; font-size:6px; color:#ffd700; border-bottom:1px dashed #78350f; padding-bottom:3px; margin-bottom:3px;">
+            <span>[YATA TELEMETRY STREAM ACTIVE]</span>
+        </div>
+        <div id="term-logs-list">
+            <div class="term-row"><span class="term-ts">[SYSTEM]</span> <span class="term-sys">Awaiting security scan trajectory...</span></div>
+        </div>
+    </div>
+
+    <!-- Royal Decrees Modal -->
+    <div id="scroll-modal">
+        <div class="parchment-scroll">
+            <div class="parchment-close" onclick="closeRoyalDecrees()">X</div>
+            <h2>Guild Decrees & Security Patch Log</h2>
+            <div id="decrees-content-area">
+                <div style="text-align:center; color:#3e2723; font-size:10px; line-height:1.8; margin-top:40px; font-family: 'Press Start 2P', monospace;">
+                    * All codebase AST vulnerabilities patched and validated *
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Easter Egg Modal -->
+    <div id="egg-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:9999; justify-content:center; align-items:center;">
+        <div class="parchment-scroll" id="egg-scroll">
+            <div class="parchment-close" onclick="closeEggModal()">X</div>
+            <h2>Secret Message</h2>
+            <div id="egg-content-area" style="text-align:center; margin-top:50px; padding-bottom: 50px;">
+                <div style="font-family: 'Press Start 2P', monospace; font-size: 24px; color: #4e342e; text-transform: uppercase;">MADE BY TEAM SEASAW</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const radarCanvas = document.getElementById('radar-canvas');
+        const radarCtx = radarCanvas.getContext('2d');
+
+        const radarBox = document.getElementById('city-radar');
+        radarBox.addEventListener('click', function() {
+            const isExp = radarBox.classList.toggle('radar-expanded');
+            if (isExp) {
+                // Expanding: match the new CSS width/height for sharp rendering
+                radarCanvas.width = window.innerWidth * 0.6;
+                radarCanvas.height = window.innerHeight * 0.6;
+            } else {
+                radarCanvas.width = 160;
+                radarCanvas.height = 110;
+            }
+        });
+
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const gameState = { activeBuilding: null,
+            level: 1, xp: 0, xpNeeded: 250,
+            gold: 2450, elixir: 980,
+            threatsTotal: 0, threatsCleared: 0,
+            vulnerabilities: [], particles: [], monsters: [],
+            time: 0
+        };
+
+        /* ── SAFE IMAGE LOADER ── */
+        const assetImages = {};
+        function loadImg(key, path) {
+            const img = new Image();
+            img.src = path;
+            assetImages[key] = img;
+            return img;
+        }
+
+        function drawImg(img, x, y, w, h) {
+            if (img && img.complete && img.naturalWidth > 0) {
+                try { ctx.drawImage(img, x, y, w, h); return true; } catch(e) {}
+            }
+            return false;
+        }
+
+        /* ── SPRITESHEET FRAME DRAWER ── */
+        // LPC sheets: 13 columns, 21 rows, 64x64 per frame
+        const LPC_COLS = 13;
+        const LPC_FW = 64;
+        const LPC_FH = 64;
+
+        // Animation definitions (frame index based)
+        const LPC_ANIMS = {
+            idle_down:    { start: 130, frames: 1 },
+            walk_down:    { start: 130, frames: 9 },
+            walk_right:   { start: 143, frames: 9 },
+            walk_left:    { start: 117, frames: 9 },
+            slash_right:  { start: 195, frames: 6 },
+            spellcast_right: { start: 39, frames: 7 },
+            shoot_right:  { start: 247, frames: 13 },
+            hurt:         { start: 260, frames: 6 }
+        };
+
+        function drawLPCFrame(sheetImg, animName, frameIdx, x, y, w, h, flipX) {
+            if (!sheetImg || !sheetImg.complete || sheetImg.naturalWidth === 0) return false;
+            const anim = LPC_ANIMS[animName];
+            if (!anim) return false;
+            const globalFrame = anim.start + (frameIdx % anim.frames);
+            const col = globalFrame % LPC_COLS;
+            const row = Math.floor(globalFrame / LPC_COLS);
+            const sx = col * LPC_FW;
+            const sy = row * LPC_FH;
+            ctx.save();
+            if (flipX) {
+                ctx.translate(x + w, y);
+                ctx.scale(-1, 1);
+                ctx.drawImage(sheetImg, sx, sy, LPC_FW, LPC_FH, 0, 0, w, h);
+            } else {
+                ctx.drawImage(sheetImg, sx, sy, LPC_FW, LPC_FH, x, y, w, h);
+            }
+            ctx.restore();
+            return true;
+        }
+
+        /* ── LOAD ALL ASSETS ── */
+
+        // DCSS Dungeon Floor Tiles (variety)
+        const floorTiles = [];
+        ['black_cobalt01','black_cobalt02','black_cobalt03','black_cobalt04',
+         'black_cobalt05','black_cobalt06','black_cobalt07','black_cobalt08'].forEach((n,i) => {
+            floorTiles.push(loadImg('floor_'+i, '/raw_assets/environment/dungeon/dcss_dungeon_tiles/floor/'+n+'.png'));
+        });
+
+        // DCSS Wall Tiles
+        loadImg('wall_stone0', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_dark0.png');
+        loadImg('wall_stone1', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_dark1.png');
+        loadImg('wall_stone2', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_dark2.png');
+        loadImg('wall_stone3', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_dark3.png');
+        loadImg('wall_brick0', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/brick_brown0.png');
+        loadImg('wall_brick1', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/brick_dark0.png');
+        loadImg('wall_marked0', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_black_marked0.png');
+        loadImg('wall_marked1', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/wall/stone_black_marked1.png');
+
+        // DCSS Decor
+        loadImg('fountain_sparkling', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/sparkling_fountain.png');
+        loadImg('fountain_blue', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/blue_fountain.png');
+        loadImg('fountain_blood', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/blood_fountain.png');
+
+        // DCSS Statues
+        loadImg('statue_dragon', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/statue_dragon.png');
+        loadImg('statue_sword', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/statue_sword.png');
+        loadImg('statue_archer', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/statue_archer.png');
+        loadImg('statue_cat', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/statue_cat.png');
+        loadImg('column1', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/crumbled_column_1.png');
+        loadImg('column2', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/statues/crumbled_column_2.png');
+
+        // DCSS Altars
+        loadImg('altar_ash', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/altars/ashenzari.png');
+        loadImg('altar_oka', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/altars/okawaru.png');
+
+        // DCSS Doors, Traps, Gateways
+        loadImg('portal', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/gateways/enter_gehenna1.png');
+        loadImg('meat', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/cache_of_meat_1.png');
+        loadImg('dry_fountain', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/dry_fountain.png');
+        loadImg('eyes_fountain', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/decor/eyes_fountain.png');
+        loadImg('door_closed', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/doors/closed_door.png');
+        loadImg('trap_plate', '/raw_assets/environment/dungeon/dcss_dungeon_tiles/traps/pressure_plate.png');
+
+        // New ASSets - Buildings
+        loadImg('castle', '/raw_assets/castle.png');
+          loadImg('easter_egg', '/raw_assets/easter_egg.png');
+        
+        // Load Fully Animated Dragon (Optimized: every 5th frame)
+        window.dragonAnims = {
+              idle: { frames: [], max: 140, step: 5 },
+              walk: { frames: [], max: 161, step: 5 },
+              death: { frames: [], max: 301, step: 5 }
+          };
+          ['idle', 'walk', 'death'].forEach(function(anim) {
+              const data = window.dragonAnims[anim];
+              const typeStr = anim === 'idle' ? 'Idle Battle' : (anim === 'walk' ? 'Walking' : 'Death');
+            for (let i = 1; i <= data.max; i += data.step) {
+                let num = String(i).padStart(3, '0');
+                let key = 'dragon_' + anim + '_' + num;
+                data.frames.push(loadImg(key, '/dragon_anim/' + typeStr + '/' + num + '.png'));
+            }
+        });
+        loadImg('house1', '/raw_assets/house1.png');
+        loadImg('broken_house', '/raw_assets/broken_house.png');
+        loadImg('healing_aura', '/raw_assets/healing_aura.png');
+        loadImg('dust_explosion', '/raw_assets/dust_explosion.png');
+        loadImg('shield_icon', '/raw_assets/ui/shield_blue.png');
+        loadImg('watchtower', '/raw_assets/watchtower.png');
+
+        // LPC Character Spritesheets (from characters/ subfolders, copied to root)
+        loadImg('hunter_sheet', '/raw_assets/characters/archer/lpc_archer_ranger_male.png');
+        loadImg('validator_sheet', '/raw_assets/characters/knight/lpc_knight_steel_male.png');
+        loadImg('healer_sheet', '/raw_assets/characters/sage/lpc_wizard_male.png');
+        loadImg('scholar_sheet', '/raw_assets/characters/scholar/lpc_librarian_male_elderly.png');
+
+        // Lava Animation Tiles (45 frames)
+        const lavaTiles = [];
+        for (let i = 1; i <= 45; i++) {
+            const key = 'lava_' + i;
+            const num = String(10000 + i);
+            lavaTiles.push(loadImg(key, '/lava_tiles/' + num + '.png'));
+        }
+
+        // Monsters
+        loadImg('mon_1', '/raw_assets/monsters/tier1_goblin/dcss_goblins/goblin.png');
+        loadImg('mon_2', '/raw_assets/monsters/tier2_orc/dcss_orcs/orc.png');
+        loadImg('mon_3', '/raw_assets/monsters/tier3_troll/dcss_trolls_ogres/troll.png');
+        loadImg('mon_4', '/raw_assets/monsters/tier4_dragon/dcss_dragons/fire_dragon.png');
+
+        const monsterTierInfo = {
+            1: { name: 'Goblin Scout (LOW)', maxHp: 120, xp: 60, gold: 120, speed: 1.2 },
+            2: { name: 'Orc Marauder (MEDIUM)', maxHp: 220, xp: 100, gold: 220, speed: 1.0 },
+            3: { name: 'Cave Troll (HIGH)', maxHp: 380, xp: 160, gold: 380, speed: 0.8 },
+            4: { name: 'Dragonkin Boss (CRITICAL)', maxHp: 650, xp: 260, gold: 600, speed: 0.6 }
+        };
+
+        /* ── DEFENDERS (Main Heroes) ── */
+        const defenders = {
+            hunter:    { x: 0, y: 0, baseX: 0, baseY: 0, targetX: 0, targetY: 0, animState: 'idle', animFrame: 0, dir: 1, speed: 1.2, name: 'Hunter', color: '#38bdf8', sheet: 'hunter_sheet', actionAnim: 'shoot_right' },
+            validator: { x: 0, y: 0, baseX: 0, baseY: 0, targetX: 0, targetY: 0, animState: 'idle', animFrame: 0, dir: 1, speed: 1.0, name: 'Validator', color: '#22c55e', sheet: 'validator_sheet', actionAnim: 'slash_right' },
+            healer:    { x: 0, y: 0, baseX: 0, baseY: 0, targetX: 0, targetY: 0, animState: 'idle', animFrame: 0, dir: 1, speed: 1.1, name: 'Healer', color: '#d946ef', sheet: 'healer_sheet', actionAnim: 'spellcast_right' },
+            scholar:   { x: 0, y: 0, baseX: 0, baseY: 0, targetX: 0, targetY: 0, animState: 'idle', animFrame: 0, dir: 1, speed: 0.9, name: 'Scholar', color: '#fbbf24', sheet: 'scholar_sheet', actionAnim: 'spellcast_right' }
+        };
+
+        const deliveryCart = { active: false, x: 0, y: 0, tx: 0, ty: 0, hasScroll: true };
+
+        /* ── CITIZENS (walk horizontally, no spinning) ── */
+        const citizens = [];
+        const citizenSheets = ['hunter_sheet','validator_sheet','healer_sheet','scholar_sheet'];
+
+        /* ── TILE MAP (pre-seeded floor variety) ── */
+        let floorMap = [];
+
+        function initWorld() {
+            const W = canvas.width;
+            const H = canvas.height;
+
+            window.globalHousePositions = [
+                { x: 30, y: H * 0.28, label: 'Barracks' },
+                { x: 180, y: H * 0.33, label: 'Armory' },
+                { x: 80, y: H * 0.44, label: 'Workshop' },
+                { x: W - 130, y: H * 0.28, label: 'Library' },
+                { x: W - 280, y: H * 0.33, label: 'Treasury' },
+                { x: W - 180, y: H * 0.44, label: 'Infirmary' }
+            ];
+            // Position defenders in the lower courtyard area
+            const courtY = H * 0.62;
+            defenders.hunter.x = W * 0.25; defenders.hunter.y = courtY;
+            defenders.hunter.baseX = W * 0.25; defenders.hunter.baseY = courtY;
+            defenders.validator.x = W * 0.40; defenders.validator.y = courtY + 30;
+            defenders.validator.baseX = W * 0.40; defenders.validator.baseY = courtY + 30;
+            defenders.healer.x = W * 0.30; defenders.healer.y = courtY + 60;
+            defenders.healer.baseX = W * 0.30; defenders.healer.baseY = courtY + 60;
+            defenders.scholar.x = W * 0.50; defenders.scholar.y = courtY + 50;
+            defenders.scholar.baseX = W * 0.50; defenders.scholar.baseY = courtY + 50;
+
+            Object.keys(defenders).forEach(k => {
+                defenders[k].targetX = defenders[k].x;
+                defenders[k].targetY = defenders[k].y;
+            });
+
+            // Generate floor tile map
+            const cols = Math.ceil(W / 32) + 1;
+            const rows = Math.ceil(H / 32) + 1;
+            floorMap = [];
+            for (let r = 0; r < rows; r++) {
+                const row = [];
+                for (let c = 0; c < cols; c++) {
+                    row.push(Math.floor(Math.random() * floorTiles.length));
+                }
+                floorMap.push(row);
+            }
+
+            // Generate citizens walking horizontally
+            citizens.length = 0;
+            for (let i = 0; i < 28; i++) {
+                const dir = (i % 2 === 0) ? 1 : -1;
+                citizens.push({
+                    x: Math.random() * W,
+                    y: H * 0.50 + Math.random() * (H * 0.30),
+                    vx: dir * (0.3 + Math.random() * 0.3),
+                    sheet: citizenSheets[i % citizenSheets.length],
+                    animFrame: Math.floor(Math.random() * 9)
+                });
+            }
+        }
+
+        initWorld();
+        window.addEventListener('resize', () => { resizeCanvas(); initWorld(); });
+
+        /* ── INTERACTION ── */
+        let hoveredBuilding = null;
+
+        canvas.addEventListener('mousemove', function(e) {
+            const W = canvas.width, H = canvas.height;
+            hoveredBuilding = null;
+            canvas.style.cursor = 'default';
+
+            if (gameState.eggRect && e.clientX >= gameState.eggRect.x && e.clientX <= gameState.eggRect.x + gameState.eggRect.w && e.clientY >= gameState.eggRect.y && e.clientY <= gameState.eggRect.y + gameState.eggRect.h) {
+                canvas.style.cursor = 'pointer';
+                return;
+            }
+
+            // Check Guild Hall (castle) - Matched to new 180x180 size
+            const cw = 180, ch = 180;
+            const cx = (W - cw) / 2;
+            const cy = Math.floor(H * 0.20) + 20; 
+            if (e.clientX >= cx && e.clientX <= cx + cw && e.clientY >= cy && e.clientY <= cy + ch) {
+                hoveredBuilding = 'castle';
+                canvas.style.cursor = 'pointer';
+                return;
+            }
+
+            // Check houses
+            var housePositions = window.globalHousePositions || [
+                { x: 30, y: window.innerHeight * 0.28, label: 'Barracks' },
+                { x: 180, y: window.innerHeight * 0.33, label: 'Armory' },
+                { x: 80, y: window.innerHeight * 0.44, label: 'Workshop' },
+                { x: window.innerWidth - 130, y: window.innerHeight * 0.28, label: 'Library' },
+                { x: window.innerWidth - 280, y: window.innerHeight * 0.33, label: 'Treasury' },
+                { x: window.innerWidth - 180, y: window.innerHeight * 0.44, label: 'Infirmary' }
+            ];
+            for (var i = 0; i < housePositions.length; i++) {
+                var hp = housePositions[i];
+                if (e.clientX >= hp.x && e.clientX <= hp.x + 100 && e.clientY >= hp.y && e.clientY <= hp.y + 100) {
+                    hoveredBuilding = hp.label;
+                    canvas.style.cursor = 'pointer';
+                    return;
+                }
+            }
+        });
+
+        canvas.addEventListener('click', function(e) {
+            if (gameState.eggRect && e.clientX >= gameState.eggRect.x && e.clientX <= gameState.eggRect.x + gameState.eggRect.w && e.clientY >= gameState.eggRect.y && e.clientY <= gameState.eggRect.y + gameState.eggRect.h) {
+                openEggModal();
+                return;
+            }
+            if (hoveredBuilding === 'castle') {
+                openRoyalDecrees();
+            } else if (hoveredBuilding) {
+                showFloatingText(hoveredBuilding + ' - Under Construction', '#ffd700', e.clientX - 60, e.clientY - 30);
+            }
+        });
+
+        function showFloatingText(text, color, x, y) {
+            const el = document.createElement('div');
+            el.className = 'f-toast';
+            el.innerText = text;
+            el.style.color = color;
+            document.getElementById('toast-container').appendChild(el);
+            setTimeout(() => {
+                el.style.transition = 'height 0.3s, margin 0.3s, opacity 0.3s';
+                el.style.height = '0px';
+                el.style.margin = '0px';
+                el.style.overflow = 'hidden';
+                setTimeout(() => el.remove(), 300);
+            }, 2500);
+        }
+
+        function dispatchRollingCart(vulnTitle) {
+            deliveryCart.active = true;
+            deliveryCart.x = window.innerWidth - 120;
+            deliveryCart.y = window.innerHeight * 0.55;
+            deliveryCart.tx = window.innerWidth * 0.48;
+            deliveryCart.ty = window.innerHeight * 0.50;
+            deliveryCart.hasScroll = true;
+            showFloatingText('CARRIER DISPATCHED: ' + vulnTitle, '#fbbf24', deliveryCart.x - 40, deliveryCart.y - 30);
+        }
+
+        function addExperience(amount, goldReward) {
+            goldReward = goldReward || 0;
+            gameState.xp += amount;
+            gameState.gold += goldReward;
+            gameState.elixir += Math.floor(goldReward * 0.5);
+            gameState.threatsCleared++;
+
+            while (gameState.xp >= gameState.xpNeeded) {
+                gameState.xp -= gameState.xpNeeded;
+                gameState.level++;
+                gameState.xpNeeded = Math.floor(gameState.xpNeeded * 1.5);
+                showFloatingText('GUILD HALL UPGRADED TO LEVEL ' + gameState.level + '!', '#ffd700', window.innerWidth * 0.5, window.innerHeight * 0.20);
+            }
+            renderHud();
+        }
+
+        function renderHud() {
+            document.getElementById('hud-th-name').innerText = 'GUILD HALL (LV.' + gameState.level + ')';
+            document.getElementById('hud-xp-lvl-text').innerText = 'LEVEL ' + gameState.level + ' GUILD';
+            document.getElementById('hud-xp-ratio-text').innerText = gameState.xp + ' / ' + gameState.xpNeeded + ' XP';
+            const pct = Math.min(100, Math.floor((gameState.xp / gameState.xpNeeded) * 100));
+            document.getElementById('hud-xp-fill-bar').style.width = pct + '%';
+            document.getElementById('hud-xp-pct-text').innerText = pct + '%';
+            document.getElementById('stat-gold').innerText = gameState.gold.toLocaleString();
+            document.getElementById('stat-elixir').innerText = gameState.elixir.toLocaleString();
+            document.getElementById('stat-threats').innerText = gameState.threatsCleared + '/' + gameState.threatsTotal;
+        }
+
+        function logTelemetry(source, msg) {
+            const box = document.getElementById('term-logs-list');
+            const entry = document.createElement('div');
+            entry.className = 'term-row';
+            const time = new Date().toLocaleTimeString();
+            let srcClass = 'term-' + source.toLowerCase();
+            entry.innerHTML = '<span class="term-ts">[' + time + ']</span> <span class="' + srcClass + '">[' + source.toUpperCase() + ']</span> ' + msg;
+            box.appendChild(entry);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function renderQuestTracker() {
+            const box = document.getElementById('quest-items-container');
+            if (gameState.vulnerabilities.length === 0) {
+                box.innerHTML = '<div style="color:#a1947c;">* All code frontiers secured *</div>';
+                return;
+            }
+            box.innerHTML = '';
+            gameState.vulnerabilities.forEach(function(v) {
+                const item = document.createElement('div');
+                item.className = 'q-card';
+                const isP = v.status === 'Patched';
+                item.style.borderLeftColor = isP ? '#22c55e' : '#ef4444';
+                item.innerHTML = '<div style="color:' + (isP ? '#86efac' : '#fca5a5') + '; font-weight:bold;">' + (isP ? '✓' : '⚔') + ' ' + v.title + '</div>' +
+                    '<div style="color:#a1947c; font-size:6px;">Severity: ' + v.severity + ' | Bounty: +' + v.xp + ' XP</div>';
+                box.appendChild(item);
+            });
+        }
+
+        function openRoyalDecrees() {
+            const list = document.getElementById('decrees-content-area');
+            if (gameState.vulnerabilities.length > 0) {
+                list.innerHTML = '';
+                gameState.vulnerabilities.forEach(function(v) {
+                    const card = document.createElement('div');
+                    card.className = 'decree-box';
+                    const isP = v.status === 'Patched';
+                    card.innerHTML = '<div class="decree-h"><span>' + v.title + '</span><span>[' + v.severity + ']</span></div>' +
+                        '<div class="decree-b">By guild decree, a vulnerability in the codebase AST has been neutralized.</div>' +
+                        '<div class="decree-f ' + (isP ? 'patched' : '') + '">' + (isP ? 'FORTIFIED & REPRODUCED' : 'UNDER ACTIVE HEALING') + '</div>';
+                    list.appendChild(card);
+                });
+            }
+            document.getElementById('scroll-modal').style.display = 'flex';
+        }
+
+        function openEggModal() {
+            document.getElementById('egg-modal').style.display = 'flex';
+        }
+
+        function closeEggModal() {
+            const scroll = document.getElementById('egg-scroll');
+            scroll.style.animation = 'rollup 0.5s cubic-bezier(0.8, 0.1, 1, 0.3) forwards';
+            setTimeout(function() {
+                document.getElementById('egg-modal').style.display = 'none';
+                scroll.style.animation = ''; // reset for next open
+            }, 450);
+        }
+
+        function closeRoyalDecrees() {
+            const scroll = document.querySelector('.parchment-scroll');
+            scroll.style.animation = 'rollup 0.5s cubic-bezier(0.8, 0.1, 1, 0.3) forwards';
+            setTimeout(function() {
+                document.getElementById('scroll-modal').style.display = 'none';
+                scroll.style.animation = ''; // reset for next open
+            }, 450);
+        }
+
+        function spawnThreatMonster(vulnData) {
+            gameState.threatsTotal++;
+            const tier = vulnData.tier || 4;
+            const tInfo = monsterTierInfo[tier] || monsterTierInfo[4];
+            
+            // Set the active building for the attack
+            // Pick a random house
+            let targetHouse = window.globalHousePositions[Math.floor(Math.random() * window.globalHousePositions.length)];
+            gameState.activeBuilding = {
+                x: targetHouse.x + 50, // Center of house
+                y: targetHouse.y + 50,
+                state: 'broken', // 'normal', 'broken', 'healing', 'healed'
+                file: vulnData.file
+            };
+            
+            // Hunter shoots from afar
+            defenders.hunter.dir = (gameState.activeBuilding.x > defenders.hunter.x) ? 1 : -1;
+            defenders.hunter.animState = 'action';
+            defenders.hunter.animFrame = 0;
+            setTimeout(() => defenders.hunter.animState = 'idle', 800);
+            
+                              // Projectiles are now auto-spawned in render loop based on state!
+            
+            const monster = {
+                x: gameState.activeBuilding.x,
+                y: gameState.activeBuilding.y - 60, // Spawn on top of the broken house
+                tx: gameState.activeBuilding.x,
+                ty: gameState.activeBuilding.y - 60,
+                title: vulnData.vuln,
+                severity: vulnData.severity,
+                tier: tier,
+                hp: tInfo.maxHp,
+                maxHp: tInfo.maxHp,
+                speed: tInfo.speed,
+                xp: tInfo.xp,
+                gold: tInfo.gold,
+                defeated: false
+            };
+            gameState.monsters.push(monster);
+            gameState.vulnerabilities.push({
+                title: vulnData.vuln, severity: vulnData.severity,
+                tier: tier, xp: tInfo.xp, status: 'Active'
+            });
+            renderHud();
+            renderQuestTracker();
+            dispatchRollingCart(vulnData.vuln);
+            showFloatingText('THREAT RAID: ' + vulnData.vuln + '!', '#ef4444', monster.x - 50, monster.y - 40);
+        }
+
+        /* ── ANIMATION TIMER ── */
+        let animTick = 0;
+
+        /* ── GAME LOOP ── */
+        let lastTime = performance.now();
+
+        function gameLoop(now) {
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+            gameState.time += dt;
+            animTick++;
+
+            update(dt);
+            render();
+            renderRadar();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt) {
+            // Defenders patrol gently
+            Object.keys(defenders).forEach(function(key) {
+                const d = defenders[key];
+                const targetMonster = gameState.monsters.find(function(m) { return !m.defeated; });
+
+                if (false && targetMonster) {
+                    // Disabled autonomous chasing to obey the guided workflow
+                } else {
+                    if (d.patrolState !== 'walking' && d.patrolState !== 'waiting' && d.patrolState !== 'healing_walk' && d.patrolState !== 'validating_walk' && d.patrolState !== 'hunting_walk') {
+                        d.patrolState = 'waiting';
+                        d.waitTime = Math.random() * 2 + 1; // Wait 1 to 3 seconds
+                    }
+                }
+
+                if (d.patrolState === 'waiting') {
+                    d.waitTime -= dt;
+                    if (d.waitTime <= 0) {
+                        d.patrolState = 'walking';
+                        // Pick a random point near their base to patrol to
+                        d.targetX = d.baseX + (Math.random() - 0.5) * 120;
+                        d.targetY = d.baseY + (Math.random() - 0.5) * 40;
+                    }
+                }
+
+                const dx = d.targetX - d.x;
+                const dy = d.targetY - d.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (d.patrolState === 'chasing' || d.patrolState === 'walking' || d.patrolState === 'healing_walk' || d.patrolState === 'validating_walk') {
+                    if (dist > 2) {
+                        const moveSpeed = (d.patrolState === 'chasing') ? d.speed : d.speed * 0.3;
+                        d.x += (dx / dist) * moveSpeed;
+                        d.y += (dy / dist) * moveSpeed;
+                        
+                        // Flip direction based on movement
+                        if (Math.abs(dx) > 0.5) {
+                            d.dir = dx > 0 ? 1 : -1;
+                        }
+                        if (d.animState !== 'action') d.animState = 'walk';
+                    } else {
+                        d.x = d.targetX;
+                        d.y = d.targetY;
+                        if (d.patrolState === 'walking') {
+                            d.patrolState = 'waiting';
+                            d.waitTime = Math.random() * 2 + 1;
+                        }
+                        if (!targetMonster) d.dir = 1; 
+                        if (d.animState !== 'action') d.animState = 'idle';
+                    }
+                }
+
+                // Advance frame
+                if (animTick % 6 === 0) d.animFrame++;
+            });
+
+            // Citizens walk horizontally
+            citizens.forEach(function(c) {
+                c.x += c.vx;
+                if (c.vx > 0 && c.x > canvas.width + 40) c.x = -40;
+                if (c.vx < 0 && c.x < -40) c.x = canvas.width + 40;
+                if (animTick % 8 === 0) c.animFrame++;
+            });
+
+            // Lava Animation Tiles (45 frames)
+        const lavaTiles = [];
+        for (let i = 1; i <= 45; i++) {
+            const key = 'lava_' + i;
+            const num = String(10000 + i);
+            lavaTiles.push(loadImg(key, '/lava_tiles/' + num + '.png'));
+        }
+
+        // Monsters approach
+            gameState.monsters.forEach(function(m) {
+                if (m.defeated) return;
+                const dx = m.tx - m.x;
+                const dy = m.ty - m.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 5) {
+                    m.x += (dx / dist) * m.speed;
+                    m.y += (dy / dist) * m.speed;
+                }
+            });
+
+            // Delivery Cart
+            if (deliveryCart.active) {
+                const dx = deliveryCart.tx - deliveryCart.x;
+                const dy = deliveryCart.ty - deliveryCart.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 8) {
+                    deliveryCart.x += (dx / dist) * 0.8;
+                    deliveryCart.y += (dy / dist) * 0.8;
+                } else {
+                    if (deliveryCart.hasScroll) {
+                        deliveryCart.hasScroll = false;
+                        showFloatingText('SCROLL ARCHIVED IN GUILD HALL', '#fbbf24', deliveryCart.x, deliveryCart.y - 30);
+                        setTimeout(function() { deliveryCart.active = false; }, 1500);
+                    }
+                }
+            }
+        }
+
+        /* ── RENDERING ── */
+        function render() {
+            const W = canvas.width;
+            const H = canvas.height;
+
+            // 1. DUNGEON FLOOR (tiled DCSS black cobalt)
+            for (let r = 0; r < floorMap.length; r++) {
+                for (let c = 0; c < (floorMap[r] ? floorMap[r].length : 0); c++) {
+                    const tile = floorTiles[floorMap[r][c]];
+                    if (tile && tile.complete && tile.naturalWidth > 0) {
+                        ctx.drawImage(tile, c * 32, r * 32, 32, 32);
+                    } else {
+                        ctx.fillStyle = '#0a0a0a';
+                        ctx.fillRect(c * 32, r * 32, 32, 32);
+                    }
+                }
+            }
+
+            // 2. UPPER FORTRESS WALL (DCSS stone wall tiles)
+            const wallH = Math.floor(H * 0.20);
+            for (let x = 0; x < W; x += 32) {
+                for (let y = 0; y < wallH; y += 32) {
+                    const wallKey = 'wall_stone' + ((Math.floor(x/32) + Math.floor(y/32)) % 4);
+                    const wallImg = assetImages[wallKey];
+                    if (wallImg && wallImg.complete && wallImg.naturalWidth > 0) {
+                        ctx.drawImage(wallImg, x, y, 32, 32);
+                    }
+                }
+            }
+
+            // Battlement merlons
+            const bY = wallH - 16;
+            ctx.fillStyle = '#1a1008';
+            ctx.fillRect(0, bY, W, 16);
+            for (let x = 10; x < W; x += 50) {
+                const mImg = assetImages['wall_marked0'];
+                if (mImg && mImg.complete && mImg.naturalWidth > 0) {
+                    ctx.drawImage(mImg, x, bY - 20, 28, 28);
+                } else {
+                    ctx.fillStyle = '#2a1a08';
+                    ctx.fillRect(x, bY - 16, 24, 16);
+                }
+            }
+
+            // 3. STONE PATH (darker brick stripe across the middle)
+            const pathY = Math.floor(H * 0.55);
+            const pathH = 60;
+            for (let x = 0; x < W; x += 32) {
+                const brickImg = assetImages['wall_brick0'];
+                if (brickImg && brickImg.complete && brickImg.naturalWidth > 0) {
+                    ctx.drawImage(brickImg, x, pathY, 32, 32);
+                    ctx.drawImage(brickImg, x, pathY + 32, 32, 28);
+                }
+            }
+
+            // 4. ANIMATED LAVA RIVER (real 32x32 lava tiles)
+            const riverY = H - 80;
+            const lavaFrame = Math.floor(Date.now() / 120) % 45;
+            const lavaImg = lavaTiles[lavaFrame];
+            if (lavaImg && lavaImg.complete && lavaImg.naturalWidth > 0) {
+                for (let lx = 0; lx < W; lx += 32) {
+                    for (let ly = riverY; ly < H; ly += 32) {
+                        ctx.drawImage(lavaImg, lx, ly, 32, 32);
+                    }
+                }
+            } else {
+                ctx.fillStyle = '#7f1d1d';
+                ctx.fillRect(0, riverY, W, 80);
+            }
+            // Stone bank edge
+            for (let bx = 0; bx < W; bx += 32) {
+                const bankImg = assetImages['wall_brick0'];
+                if (bankImg && bankImg.complete && bankImg.naturalWidth > 0) {
+                    ctx.drawImage(bankImg, bx, riverY - 8, 32, 12);
+                }
+            }
+
+            // 5. WATCHTOWERS (left and right corners)
+            const wtImg = assetImages['watchtower'];
+            if (wtImg && wtImg.complete && wtImg.naturalWidth > 0) {
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath(); ctx.ellipse(90, wallH + 140, 50, 18, 0, 0, Math.PI * 2); ctx.fill();
+                drawImg(wtImg, 20, wallH - 30, 140, 180);
+
+                ctx.beginPath(); ctx.ellipse(W - 90, wallH + 140, 50, 18, 0, 0, Math.PI * 2); ctx.fill();
+                drawImg(wtImg, W - 160, wallH - 30, 140, 180);
+            }
+
+            // 6. HOUSES (randomized facing, varied positions)
+            const hImg = assetImages['house1'];
+            if (hImg && hImg.complete && hImg.naturalWidth > 0) {
+                const housePositions = window.globalHousePositions || [];
+                housePositions.forEach(function(hp) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.beginPath(); ctx.ellipse(hp.x + 50, hp.y + 95, 40, 12, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.save();
+                    if (hp.flip) {
+                        ctx.translate(hp.x + 100, hp.y);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(hImg, 0, 0, 100, 100);
+                    } else {
+                        ctx.drawImage(hImg, hp.x, hp.y, 100, 100);
+                    }
+                    ctx.restore();
+                    // Building label
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(hp.x + 15, hp.y + 80, 70, 14);
+                    ctx.strokeStyle = '#78350f';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(hp.x + 15, hp.y + 80, 70, 14);
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = '5px "Press Start 2P"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(hp.label, hp.x + 50, hp.y + 90);
+                });
+            }
+
+                        // 7. CASTLE (center, big) - Only bottom-left quadrant of the 2x2 sprite
+            const castleImg = assetImages['castle'];
+            if (castleImg && castleImg.complete && castleImg.naturalWidth > 0) {
+                const cw = 180, ch = 180;
+                const cx = (W - cw) / 2;
+                const cy = Math.floor(H * 0.20) + 20;
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath(); ctx.ellipse(cx + cw/2, cy + ch - 20, cw * 0.4, 15, 0, 0, Math.PI * 2); ctx.fill();
+                
+                // image is 915x906, bottom-left quadrant is x=0, y=453, w=457, h=453
+                ctx.drawImage(castleImg, 0, 453, 457, 453, cx, cy, cw, ch);
+
+                // Hover glow effect
+                if (hoveredBuilding === 'castle') {
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 20;
+                    ctx.strokeRect(cx + 10, cy + 10, cw - 20, ch - 20);
+                    ctx.shadowBlur = 0;
+                }
+
+                // Label
+                ctx.fillStyle = hoveredBuilding === 'castle' ? '#ffd700' : '#78350f';
+                ctx.fillRect(cx + cw/2 - 50, cy + ch - 10, 100, 22);
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(cx + cw/2 - 50, cy + ch - 10, 100, 22);
+                ctx.fillStyle = hoveredBuilding === 'castle' ? '#000' : '#ffd700';
+                ctx.font = '7px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText('GUILD HALL', cx + cw/2, cy + ch + 6);
+                ctx.font = '5px "Press Start 2P"';
+                ctx.fillStyle = '#a1947c';
+                ctx.fillText('CLICK TO INSPECT', cx + cw/2, cy + ch + 16);
+            }
+
+            // ACTIVE BUILDING DESTRUCTION & HEALING OVERLAYS
+            if (gameState.activeBuilding) {
+                const abX = gameState.activeBuilding.x - 50; // Center over the 100x100 house
+                const abY = gameState.activeBuilding.y - 50;
+                
+                if (gameState.activeBuilding.state === 'broken') {
+                    // Draw destruction dust explosion
+                    const dustImg = assetImages['dust_explosion'];
+                    if (dustImg && dustImg.complete && dustImg.naturalWidth > 0) {
+                        ctx.save();
+                        const s = 1 + Math.sin(Date.now() / 200) * 0.05;
+                        ctx.translate(abX + 50, abY + 50);
+                        ctx.scale(s, s);
+                        ctx.globalAlpha = 0.8;
+                        ctx.drawImage(dustImg, -80, -80, 160, 160);
+                        ctx.restore();
+                    }
+                    const brokenImg = assetImages['broken_house'];
+                    if (brokenImg && brokenImg.complete && brokenImg.naturalWidth > 0) {
+                        ctx.drawImage(brokenImg, abX, abY, 100, 100);
+                    }
+                } 
+                else if (gameState.activeBuilding.state === 'healing') {
+                    const healImg = assetImages['healing_aura'];
+                    if (healImg && healImg.complete && healImg.naturalWidth > 0) {
+                        ctx.save();
+                        const angle = (Date.now() / 1000) * Math.PI;
+                        const s = 1 + Math.sin(Date.now() / 150) * 0.1;
+                        ctx.translate(abX + 50, abY + 50);
+                        ctx.rotate(angle);
+                        ctx.scale(s, s);
+                        ctx.globalCompositeOperation = 'screen';
+                        ctx.globalAlpha = 0.9;
+                        ctx.drawImage(healImg, -80, -80, 160, 160);
+                        ctx.restore();
+                    }
+                }
+                else if (gameState.activeBuilding.state === 'healed') {
+                    const shieldImg = assetImages['shield_icon'];
+                    if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
+                        ctx.save();
+                        const s = 1 + Math.abs(Math.sin(Date.now() / 300)) * 0.5;
+                        ctx.translate(abX + 50, abY + 50);
+                        ctx.scale(s, s);
+                        ctx.globalAlpha = Math.max(0, 1 - Math.abs(Math.sin(Date.now() / 300)));
+                        ctx.drawImage(shieldImg, -30, -30, 60, 60);
+                        ctx.restore();
+                    }
+                }
+            }
+
+            // 8. DCSS DECOR (fountains along the stone path, statues guard gates)
+            // Fountains flanking the stone path
+            drawImg(assetImages['fountain_sparkling'], W * 0.22, H * 0.50, 48, 48);
+            drawImg(assetImages['fountain_blue'], W * 0.72, H * 0.50, 48, 48);
+            drawImg(assetImages['fountain_blood'], W * 0.47, H * 0.75, 44, 44);
+
+            // Guardian statues at the fortress gate
+            drawImg(assetImages['statue_sword'], W * 0.38, H * 0.20, 36, 48);
+            drawImg(assetImages['statue_archer'], W * 0.58, H * 0.20, 36, 48);
+
+            // Decorative statues scattered in districts
+            drawImg(assetImages['statue_dragon'], W * 0.06, H * 0.55, 44, 56);
+            drawImg(assetImages['statue_cat'], W * 0.92, H * 0.55, 36, 44);
+            drawImg(assetImages['meat'], W * 0.12, H * 0.35, 40, 40);
+            drawImg(assetImages['dry_fountain'], W * 0.88, H * 0.35, 48, 48);
+            drawImg(assetImages['eyes_fountain'], W * 0.50, H * 0.85, 48, 48);
+
+            // Crumbled columns along the path edges
+            drawImg(assetImages['column1'], W * 0.32, H * 0.52, 28, 36);
+            drawImg(assetImages['column2'], W * 0.65, H * 0.52, 28, 36);
+
+            // Altars near the lava bank
+            drawImg(assetImages['altar_ash'], W * 0.25, H * 0.76, 40, 40);
+            drawImg(assetImages['altar_oka'], W * 0.70, H * 0.76, 40, 40);
+
+            // 9. TORCH GLOW (flickering ambient light spots)
+            const torchPositions = [
+                [W * 0.10, wallH + 10], [W * 0.30, wallH + 10], [W * 0.50, wallH + 10],
+                [W * 0.70, wallH + 10], [W * 0.90, wallH + 10]
+            ];
+            torchPositions.forEach(function(tp) {
+                const flicker = 0.15 + Math.sin(gameState.time * 4 + tp[0]) * 0.05;
+                ctx.fillStyle = 'rgba(255, 150, 30, ' + flicker + ')';
+                ctx.beginPath();
+                ctx.arc(tp[0], tp[1], 30, 0, Math.PI * 2);
+                ctx.fill();
+                // Tiny flame
+                ctx.fillStyle = '#ffd700';
+                ctx.fillRect(tp[0] - 2, tp[1] - 8, 4, 6);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(tp[0] - 1, tp[1] - 12, 2, 4);
+            });
+
+            // 10. THREAT PORTAL (far right)
+            const px = W - 90;
+            const py = H * 0.55;
+            drawImg(assetImages['portal'], px - 30, py - 35, 60, 70);
+            ctx.fillStyle = '#ef4444';
+            ctx.font = '6px "Press Start 2P"';
+            ctx.textAlign = 'center';
+            ctx.fillText('GEHENNA RIFT', px, py + 45);
+
+            // CONTINUOUS PROJECTILE SPAWNING
+            if (gameState.activeBuilding) {
+                // Determine facing direction
+                ['hunter', 'healer', 'validator'].forEach(agent => {
+                    defenders[agent].dir = (gameState.activeBuilding.x > defenders[agent].x) ? 1 : -1;
+                });
+
+                if (gameState.activeBuilding.state === 'broken') {
+                    if (!gameState.hunterProjectile || !gameState.hunterProjectile.active) {
+                        gameState.hunterProjectile = { active: true, x: defenders.hunter.x, y: defenders.hunter.y - 10, tx: gameState.activeBuilding.x, ty: gameState.activeBuilding.y, progress: 0 };
+                        defenders.hunter.animState = 'action'; defenders.hunter.animFrame = 0;
+                        setTimeout(() => { if(defenders.hunter.animState === 'action') defenders.hunter.animState = 'idle'; }, 300);
+                    }
+                }
+                else if (gameState.activeBuilding.state === 'healing') {
+                    if (!gameState.spellProjectile || !gameState.spellProjectile.active) {
+                        gameState.spellProjectile = { active: true, x: defenders.healer.x, y: defenders.healer.y - 20, tx: gameState.activeBuilding.x, ty: gameState.activeBuilding.y, progress: 0 };
+                        defenders.healer.animState = 'action'; defenders.healer.animFrame = 0;
+                        setTimeout(() => { if(defenders.healer.animState === 'action') defenders.healer.animState = 'idle'; }, 300);
+                    }
+                }
+                else if (gameState.activeBuilding.state === 'healed') {
+                    if (!gameState.shieldProjectile || !gameState.shieldProjectile.active) {
+                        gameState.shieldProjectile = { active: true, x: defenders.validator.x, y: defenders.validator.y - 10, tx: gameState.activeBuilding.x, ty: gameState.activeBuilding.y, progress: 0 };
+                        defenders.validator.animState = 'action'; defenders.validator.animFrame = 0;
+                        setTimeout(() => { if(defenders.validator.animState === 'action') defenders.validator.animState = 'idle'; }, 300);
+                    }
+                }
+            }
+
+            // 10.5 SPELL PROJECTILE
+            if (gameState.spellProjectile && gameState.spellProjectile.active) {
+                const sp = gameState.spellProjectile;
+                sp.progress += 0.015; // Speed of projectile (about 1 second to reach)
+                if (sp.progress >= 1.0) {
+                    sp.progress = 1.0;
+                    sp.active = false;
+
+                }
+                
+                const curX = sp.x + (sp.tx - sp.x) * sp.progress;
+                const curY = sp.y + (sp.ty - sp.y) * sp.progress;
+                const healImg = assetImages['healing_aura'];
+                if (healImg && healImg.complete && healImg.naturalWidth > 0) {
+                    ctx.save();
+                    const angle = (Date.now() / 500) * Math.PI; // Fast spin while traveling
+                    const s = 0.2 + (sp.progress * 0.8); // Starts small (0.2), grows to 1.0
+                    ctx.translate(curX + 50, curY + 50);
+                    ctx.rotate(angle);
+                    ctx.scale(s, s);
+                    ctx.globalCompositeOperation = 'screen';
+                    ctx.globalAlpha = 0.9;
+                    ctx.drawImage(healImg, -80, -80, 160, 160);
+                    ctx.restore();
+                }
+            }
+
+            // HUNTER ARROW PROJECTILE
+            if (gameState.hunterProjectile && gameState.hunterProjectile.active) {
+                const sp = gameState.hunterProjectile;
+                sp.progress += 0.03; // Faster projectile
+                if (sp.progress >= 1.0) {
+                    sp.progress = 1.0;
+                    sp.active = false;
+                }
+                const curX = sp.x + (sp.tx - sp.x) * sp.progress;
+                const curY = sp.y + (sp.ty - sp.y) * sp.progress;
+                
+                ctx.save();
+                ctx.translate(curX + 50, curY + 50);
+                const angle = Math.atan2(sp.ty - sp.y, sp.tx - sp.x);
+                ctx.rotate(angle);
+                // Draw a simple glowing yellow arrow line
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(10, 0);
+                ctx.moveTo(5, -5);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(5, 5);
+                ctx.strokeStyle = '#fef08a'; // Bright yellow
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#fef08a';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // VALIDATOR SHIELD PROJECTILE
+            if (gameState.shieldProjectile && gameState.shieldProjectile.active) {
+                const sp = gameState.shieldProjectile;
+                sp.progress += 0.02; // Medium speed
+                if (sp.progress >= 1.0) {
+                    sp.progress = 1.0;
+                    sp.active = false;
+
+                }
+                const curX = sp.x + (sp.tx - sp.x) * sp.progress;
+                const curY = sp.y + (sp.ty - sp.y) * sp.progress;
+                const shieldImg = assetImages['shield_icon'];
+                if (shieldImg && shieldImg.complete && shieldImg.naturalWidth > 0) {
+                    ctx.save();
+                    const angle = (Date.now() / 200) * Math.PI; // Spin wildly like Captain America
+                    const s = 0.2 + (sp.progress * 0.8);
+                    ctx.translate(curX + 50, curY + 50);
+                    ctx.rotate(angle);
+                    ctx.scale(s, s);
+                    ctx.drawImage(shieldImg, -30, -30, 60, 60);
+                    ctx.restore();
+                }
+            }
+
+            // 11. MONSTERS
+            gameState.monsters.forEach(function(m) {
+                if (m.defeated) return;
+                
+                ctx.save();
+                ctx.translate(m.x, m.y);
+                
+                // Threat Spawn Glow
+                ctx.shadowColor = '#ef4444';
+                ctx.shadowBlur = 30 + Math.sin(Date.now() / 150) * 20;
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(0, 10, 60, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Use animated dragon for all monsters to fit the theme for now!
+                const dx = Math.abs(m.x - m.tx);
+                const dy = Math.abs(m.y - m.ty);
+                const isWalking = (dx > 2 || dy > 2);
+                
+                let animState = 'idle';
+                let fIdx = 0;
+                
+                if (m.dying) {
+                    animState = 'death';
+                    m.deathTick = (m.deathTick || 0) + 1;
+                    fIdx = Math.floor(m.deathTick / 2); // Play death animation faster! (30fps instead of 15fps)
+                    const maxIdx = window.dragonAnims['death'].frames.length - 1;
+                    if (fIdx > maxIdx) fIdx = maxIdx; // Stay dead on the last frame
+                } else if (isWalking) {
+                    animState = 'walk';
+                    fIdx = Math.floor(animTick / 4) % window.dragonAnims['walk'].frames.length;
+                } else {
+                    fIdx = Math.floor(animTick / 4) % window.dragonAnims['idle'].frames.length;
+                }
+                
+                const data = window.dragonAnims ? window.dragonAnims[animState] : null;
+                
+                let drawn = false;
+                if (data && data.frames.length > 0) {
+                    let frmImg = data.frames[fIdx];
+                    if (frmImg && frmImg.complete && frmImg.naturalWidth > 0) {
+                        // Original size ~725x445. Scale down to ~180x110
+                        let dw = 180, dh = 110;
+                        ctx.scale(-1, 1); // Flip horizontally because it faces right but walks left
+                        ctx.drawImage(frmImg, -dw/2, -dh + 20, dw, dh);
+                        drawn = true;
+                    }
+                }
+                
+                if (!drawn) {
+                    const mImg = assetImages['mon_' + m.tier];
+                    if (!drawImg(mImg, -32, -40, 64, 64)) {
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fillRect(-20, -30, 40, 40);
+                    }
+                }
+                ctx.restore();
+                
+                // HP bar
+                ctx.fillStyle = '#000';
+                ctx.fillRect(m.x - 30, m.y - 85, 60, 8); // Moved up higher because dragon is tall
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(m.x - 29, m.y - 84, (Math.max(0, m.hp) / m.maxHp) * 58, 6);
+            });
+
+            // 12. DELIVERY CART
+            if (deliveryCart.active) {
+                ctx.save();
+                ctx.translate(deliveryCart.x, deliveryCart.y);
+                ctx.fillStyle = '#854d0e';
+                ctx.fillRect(10, -15, 30, 20);
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath(); ctx.arc(16, 8, 6, 0, Math.PI * 2); ctx.arc(34, 8, 6, 0, Math.PI * 2); ctx.fill();
+                if (deliveryCart.hasScroll) {
+                    ctx.fillStyle = '#fef08a';
+                    ctx.fillRect(18, -22, 14, 16);
+                }
+                ctx.restore();
+            }
+
+            // 13. AMBIENT CITIZENS (small, walking horizontally)
+            citizens.forEach(function(c) {
+                const sheet = assetImages[c.sheet];
+                const flipX = c.vx < 0;
+                const animName = 'walk_right';
+                const frame = c.animFrame % 9;
+                if (!drawLPCFrame(sheet, animName, frame, c.x - 16, c.y - 24, 32, 32, flipX)) {
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(c.x - 8, c.y - 12, 16, 24);
+                }
+            });
+
+            // 14. DEFENDERS (big, prominent heroes with LPC spritesheets)
+            Object.keys(defenders).forEach(function(key) {
+                const d = defenders[key];
+                const sheet = assetImages[d.sheet];
+
+                // Gold aura glow
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+                ctx.beginPath();
+                ctx.ellipse(d.x, d.y + 20, 35, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Determine animation
+                let animName = 'idle_down';
+                let frame = 0;
+                const flipX = d.dir < 0;
+
+                if (d.animState === 'walk') {
+                    animName = 'walk_right';
+                    frame = d.animFrame % 9;
+                } else if (d.animState === 'action') {
+                    animName = d.actionAnim;
+                    frame = d.animFrame % LPC_ANIMS[animName].frames;
+                }
+
+                // Draw hero at 2x size (96x96) to stand out from citizens
+                if (!drawLPCFrame(sheet, animName, frame, d.x - 48, d.y - 72, 96, 96, flipX)) {
+                    // Fallback: colored rectangle
+                    ctx.fillStyle = d.color;
+                    ctx.fillRect(d.x - 24, d.y - 48, 48, 48);
+                }
+
+                // Nameplate
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(d.x - 28, d.y - 82, 56, 14);
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(d.x - 28, d.y - 82, 56, 14);
+                ctx.fillStyle = '#ffd700';
+                ctx.font = '7px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.name, d.x, d.y - 72);
+            });
+
+            // EASTER EGG
+            const eggImg = assetImages['easter_egg'];
+            if (eggImg && eggImg.complete && eggImg.naturalWidth > 0) {
+                // Lower left tile, safely above lava
+                gameState.eggRect = { x: 40, y: canvas.height - 120, w: 60, h: 60 };
+                ctx.drawImage(eggImg, gameState.eggRect.x, gameState.eggRect.y, gameState.eggRect.w, gameState.eggRect.h);
+            }
+        }
+
+        function renderRadar() {
+            radarCtx.fillStyle = '#05070a';
+            radarCtx.fillRect(0, 0, radarCanvas.width, radarCanvas.height);
+
+            const scaleX = radarCanvas.width / canvas.width;
+            const scaleY = radarCanvas.height / canvas.height;
+
+            // Guild Hall dot
+            radarCtx.fillStyle = '#ffd700';
+            radarCtx.fillRect(canvas.width * 0.48 * scaleX, canvas.height * 0.25 * scaleY, 10, 8);
+
+            // Defenders
+            radarCtx.fillStyle = '#38bdf8';
+            Object.values(defenders).forEach(function(d) {
+                radarCtx.fillRect(d.x * scaleX, d.y * scaleY, 4, 4);
+            });
+
+            // Lava Animation Tiles (45 frames)
+        const lavaTiles = [];
+        for (let i = 1; i <= 45; i++) {
+            const key = 'lava_' + i;
+            const num = String(10000 + i);
+            lavaTiles.push(loadImg(key, '/lava_tiles/' + num + '.png'));
+        }
+
+        // Monsters
+            radarCtx.fillStyle = '#ef4444';
+            gameState.monsters.forEach(function(m) {
+                if (!m.defeated) radarCtx.fillRect(m.x * scaleX, m.y * scaleY, 5, 5);
+            });
+        }
+
+        /* ── SSE STREAM ── */
+        const evtSource = new EventSource('/stream');
+        evtSource.onmessage = function(event) {
+            const msg = JSON.parse(event.data);
+            const d = msg.data;
+
+            switch(msg.type) {
+                case 'connected':
+                    logTelemetry('system', 'Dungeon fortress telemetry bridge connected.');
+                    break;
+                case 'spawn_monster':
+                    spawnThreatMonster(d);
+                    break;
+                case 'agent_action':
+                    logTelemetry(d.agent, d.message);
+                    if (gameState.activeBuilding) {
+                        if (d.agent === 'hunter') {
+                            // Hunter confirms finding -> dragon dies!
+                            gameState.monsters.forEach(m => {
+                                if (!m.dying) {
+                                    m.dying = true;
+                                    m.deathTick = 0;
+                                }
+                            });
+                        }
+                        if (d.agent === 'healer') {
+                            gameState.activeBuilding.state = 'healing';
+                        }
+                        if (d.agent === 'validator') {
+                            gameState.activeBuilding.state = 'healed';
+                        }
+                    }
+                    break;
+                case 'monster_defeated':
+                    logTelemetry('system', 'Vulnerability patched: ' + d.vuln);
+                    var m = gameState.monsters.find(function(x) { return x.title === d.vuln; });
+                    if (m) {
+                        m.hp = 0;
+                        m.defeated = true;
+                        addExperience(150, 300);
+                        showFloatingText(d.vuln + ' PURGED & FORTIFIED!', '#22c55e', m.x, m.y - 40);
+                        setTimeout(function() { gameState.monsters = gameState.monsters.filter(function(x) { return x !== m; }); }, 1200);
+                    }
+                    if (gameState.activeBuilding) {
+                        setTimeout(() => {
+                            gameState.activeBuilding.state = 'normal'; // Reset to clean house
+                        }, 2000);
+                    }
+                    // Characters return to patrol base
+                    ['hunter', 'healer', 'validator'].forEach(agent => {
+                        defenders[agent].patrolState = 'walking';
+                        defenders[agent].targetX = defenders[agent].baseX;
+                        defenders[agent].targetY = defenders[agent].baseY;
+                    });
+                    break;
+            }
+        };
+
+        renderHud();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

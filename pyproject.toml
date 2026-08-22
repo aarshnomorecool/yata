@@ -20,5 +20,5 @@ dependencies = [
 yata = "yata:main"
 
 [tool.setuptools]
-py-modules = ["yata", "blue_agent", "red_agent", "verifier", "report_generator", "llm_client", "llm", "attack_library", "fallback_patches", "learner_agent"]
+py-modules = ["yata", "blue_agent", "red_agent", "verifier", "report_generator", "llm_client", "llm", "attack_library", "fallback_patches", "learner_agent", "dashboard"]
 packages = ["commands"]
