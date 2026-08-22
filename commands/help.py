@@ -10,6 +10,7 @@ def run(args) -> int:
         "yata memory <repository>\n\n"
         "yata history <repository>\n\n"
         "yata report <repository>\n\n"
+        "yata game <repository>\n\n"
         "yata status\n\n"
         "yata version\n\n"
         "yata help"
