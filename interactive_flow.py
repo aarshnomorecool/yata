@@ -3,6 +3,7 @@ from __future__ import annotations
 import difflib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from rich.console import Console
 from rich.panel import Panel
@@ -15,6 +16,14 @@ from red_agent import AttackPlan, VulnerabilityFinding
 from verifier import Referee, VerificationResult
 
 MAX_RETRIES = 3
+
+GetChoice = Callable[[str, list[dict]], str]
+
+
+def _terminal_choice(message: str, choices: list[dict]) -> str:
+    from InquirerPy import inquirer
+
+    return inquirer.select(message=message, choices=choices).execute()
 
 
 @dataclass(slots=True)
@@ -38,15 +47,20 @@ def run_four_step_decision(
     vulnerable_check: VerificationResult,
     current_root: Path,
     round_number: int,
+    get_choice: GetChoice | None = None,
 ) -> DecisionOutcome:
     """ONE state machine for the four-step patch decision.
 
-    Terminal is the only renderer/input-owner today (developer mode). Every
-    step transition and human choice is written to event_log first, so a
-    future game renderer can mirror this exact state without a second copy
-    of this decision logic.
+    get_choice(message, choices) -> value is the only seam between this
+    decision logic and whichever surface owns input. Terminal mode (the
+    default) blocks on an InquirerPy prompt; gamer mode passes
+    GameBridge.request_choice, which blocks until the browser POSTs a
+    choice. Either way every step transition and human choice is written
+    to event_log first, so both renderers -- and a renderer that isn't the
+    input owner -- can mirror this exact state without a second copy of
+    this decision logic.
     """
-    from InquirerPy import inquirer
+    get_choice = get_choice or _terminal_choice
 
     relative_file = str(finding.metadata.get("relative_file", finding.affected_file))
 
@@ -65,13 +79,13 @@ def run_four_step_decision(
         f"[bold]Exploit returned:[/bold] {vulnerable_check.evidence}",
         border_style="red", expand=True,
     ))
-    step1_choice = inquirer.select(
-        message="Finding confirmed:",
-        choices=[
+    step1_choice = get_choice(
+        "Finding confirmed:",
+        [
             {"name": "[C]ontinue", "value": "continue"},
             {"name": "[A]bort assessment", "value": "abort"},
         ],
-    ).execute()
+    )
     event_log.write("human_choice", step=1, round=round_number, choice=step1_choice)
     if step1_choice == "abort":
         return DecisionOutcome("abort", None, None, None, 0)
@@ -97,14 +111,14 @@ def run_four_step_decision(
         ))
 
         while True:
-            step2_choice = inquirer.select(
-                message="Patch generated:",
-                choices=[
+            step2_choice = get_choice(
+                "Patch generated:",
+                [
                     {"name": "[A]pply this patch", "value": "apply"},
                     {"name": "[R]eject and skip", "value": "reject"},
                     {"name": "[V]iew full diff", "value": "view"},
                 ],
-            ).execute()
+            )
             if step2_choice == "view":
                 console.print(Syntax(diff_text or "(no textual diff; patched file is byte-identical to the original)", "diff", theme="ansi_dark", word_wrap=True))
                 continue
@@ -147,7 +161,7 @@ def run_four_step_decision(
 
         blocked = battery.blocked_count if battery else 0
         total = battery.total if battery else 1
-        exception_choice = _prompt_exception(console, event_log, round_number, blocked, total)
+        exception_choice = _prompt_exception(console, event_log, round_number, blocked, total, get_choice)
         if exception_choice == "retry":
             retries_used += 1
             if retries_used >= MAX_RETRIES:
@@ -162,23 +176,23 @@ def run_four_step_decision(
     return DecisionOutcome("apply", patch_result, patched_check, battery, retries_used)
 
 
-def _prompt_exception(console: Console, event_log: EventLog, round_number: int, blocked: int, total: int) -> str:
-    from InquirerPy import inquirer
-
+def _prompt_exception(
+    console: Console, event_log: EventLog, round_number: int, blocked: int, total: int, get_choice: GetChoice
+) -> str:
     bypasses = total - blocked
     event_log.write("step_shown", step="3-exception", round=round_number, blocked=blocked, total=total, bypasses=bypasses)
     console.print(Panel(
         f"[bold red]{bypasses}/{total} bypasses succeeded, patch does NOT survive re-attack[/bold red]",
         border_style="red", expand=True,
     ))
-    choice = inquirer.select(
-        message="Patch failed re-attack:",
-        choices=[
+    choice = get_choice(
+        "Patch failed re-attack:",
+        [
             {"name": "[R]etry with alternate patch strategy", "value": "retry"},
             {"name": "[S]kip and flag for manual review", "value": "skip"},
             {"name": "[A]bort assessment", "value": "abort"},
         ],
-    ).execute()
+    )
     event_log.write("human_choice", step="3-exception", round=round_number, choice=choice)
     return choice
 

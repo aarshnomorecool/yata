@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>YATA -- {{ repo_name }}</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #14100c; color: #e8dcc4; font-family: "Trebuchet MS", sans-serif; }
+  #header { padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; background: #1f1710; border-bottom: 2px solid #4a3620; }
+  #header h1 { font-size: 16px; margin: 0; }
+  #badge { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  #badge.owner { background: #3b6b2f; color: #d7ffbf; }
+  #badge.readonly { background: #55483a; color: #e8dcc4; }
+  #game-root { width: 100vw; height: calc(100vh - 40px); }
+  #log { position: fixed; bottom: 0; left: 0; right: 0; max-height: 120px; overflow-y: auto; background: rgba(20,16,12,0.85); font-size: 12px; padding: 4px 10px; border-top: 1px solid #4a3620; }
+  #log div { padding: 1px 0; }
+  #parchment-overlay {
+    display: none;
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(520px, 80vw);
+    min-height: 220px;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    color: #2b1d0e;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 40px;
+    box-sizing: border-box;
+    text-align: center;
+    z-index: 10;
+  }
+  #parchment-message { font-size: 15px; font-weight: bold; line-height: 1.4; margin-bottom: 18px; }
+  #parchment-choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  #parchment-choices button {
+    font-family: "Trebuchet MS", sans-serif;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 2px solid #6b4a24;
+    background: #d9c79b;
+    color: #2b1d0e;
+    cursor: pointer;
+  }
+  #parchment-choices button:hover { background: #eadcb5; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>YATA -- {{ repo_name }}</h1>
+  <span id="badge" class="{{ 'owner' if owner else 'readonly' }}">{{ 'GAMER MODE -- this view decides' if owner else 'DEVELOPER MODE -- read-only mirror' }}</span>
+</div>
+<div id="game-root"></div>
+<div id="log"></div>
+<div id="parchment-overlay">
+  <div id="parchment-message"></div>
+  <div id="parchment-choices"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+<script>
+  window.YATA_OWNER = {{ 'true' if owner else 'false' }};
+  window.YATA_REPO = {{ repo_name|tojson }};
+</script>
+<script src="{{ url_for('static', filename='game.js') }}"></script>
+</body>
+</html>

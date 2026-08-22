@@ -319,6 +319,7 @@ def assess_entrypoint(args: argparse.Namespace) -> int:
             live=args.live,
             quiet=args.quiet,
             multi_repo=(len(repository_roots) > 1),
+            ui=args.ui,
         )
         summaries.append(summary)
 
@@ -372,6 +373,9 @@ def dispatch_command(args: argparse.Namespace) -> int:
     elif args.command == "help":
         from commands import help as help_cmd
         return help_cmd.run(args)
+    elif args.command == "game":
+        from commands import game
+        return game.run(args)
     return 0
 
 
@@ -383,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     raw_args = list(sys.argv[1:] if argv is None else argv)
     
-    subcommands = {"assess", "scan", "discover", "memory", "history", "report", "status", "version", "help"}
+    subcommands = {"assess", "scan", "discover", "memory", "history", "report", "status", "version", "help", "game"}
     
     if not raw_args:
         raw_args = ["assess"]
@@ -412,6 +416,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     assess_parser.add_argument("--verbose", action="store_true", help="Display verbose debugging information")
     assess_parser.add_argument("--live", action="store_true", help="Enable live feedback mode (future feature placeholder)")
     assess_parser.add_argument("--quiet", action="store_true", help="Run in quiet mode (future feature placeholder)")
+    assess_parser.add_argument(
+        "--ui", choices=["terminal", "game"], default="terminal",
+        help="terminal (default): terminal owns input, a separately-opened `yata game` view only mirrors. "
+             "game: opens a browser game view; in --interactive mode that view owns the four-step decisions.",
+    )
 
     # 2. discover
     discover_parser = subparsers.add_parser("discover", help="Discover repositories in a directory path")
@@ -438,6 +447,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # 8. help
     help_parser = subparsers.add_parser("help", help="Display YATA CLI help")
     help_parser.add_argument("subcommand", nargs="?", default=None, help="Optional subcommand to show help for")
+
+    # 9. game
+    game_parser = subparsers.add_parser("game", help="Open a read-only game-view mirror of a repository's latest/live assessment")
+    game_parser.add_argument("target", help="Repository name")
+    game_parser.add_argument("--port", type=int, default=5151, help="Port to serve the game view on")
+    game_parser.add_argument("--no-browser", action="store_true", help="Do not auto-open a browser tab")
 
     args = parser.parse_args(raw_args)
 
@@ -484,6 +499,7 @@ def _run_repository(
     live: bool = False,
     quiet: bool = False,
     multi_repo: bool = False,
+    ui: str = "terminal",
 ) -> RepositoryRunSummary:
     global console
     console = Console(record=True)
@@ -573,6 +589,10 @@ def _run_repository(
     event_log = EventLog(events_dir / "events.jsonl")
     event_log.reset()
     event_log.write("run_started", repository=repo_name, mode=mode)
+
+    game_bridge = None
+    if ui == "game":
+        game_bridge = _start_game_view(console, project_root, repo_name, owns_input=(mode == "interactive"))
 
     metadata_file = metadata_dir / "metadata.json"
     metadata_content = {
@@ -684,6 +704,13 @@ def _run_repository(
         aborted_by_user = False
         relative_file = str(finding.metadata.get("relative_file", finding.affected_file))
 
+        event_log.write(
+            "finding_confirmed", round=round_number,
+            vulnerability_type=finding.vulnerability_type, file=relative_file,
+            line_number=finding.line_number, payload=attack_plan.payload,
+            severity=severity,
+        )
+
         if mode == "interactive":
             outcome = run_four_step_decision(
                 console=console,
@@ -696,6 +723,7 @@ def _run_repository(
                 vulnerable_check=vulnerable_check,
                 current_root=current_root,
                 round_number=round_number,
+                get_choice=game_bridge.request_choice if game_bridge else None,
             )
             human_interventions += 1
             if outcome.patch_result is not None:
@@ -852,6 +880,8 @@ def _run_repository(
         if aborted_by_user:
             event_log.write("run_aborted", round=round_number)
             break
+
+        event_log.write("patch_outcome", round=round_number, file=relative_file, succeeded=patch_succeeded)
 
         score_after = referee.calculate_security_score(remaining_findings)
         round_score = referee.record_round(
@@ -1165,6 +1195,42 @@ def _select_verified_attack(
         if verbose:
             console.print("[bold yellow][VALIDATOR][/bold yellow] Weakness could not be exploited. Continuing search.")
     return None
+
+
+def _start_game_view(console: Console, project_root: Path, repo_name: str, *, owns_input: bool):
+    import socket
+    import threading
+    import webbrowser
+
+    from game.bridge import GameBridge
+    from game.server import create_game_app
+
+    bridge = GameBridge() if owns_input else None
+    app = create_game_app(project_root=project_root, repo_name=repo_name, bridge=bridge)
+
+    port = 5151
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        if probe.connect_ex(("127.0.0.1", port)) == 0:
+            probe.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as free_probe:
+                free_probe.bind(("127.0.0.1", 0))
+                port = free_probe.getsockname()[1]
+
+    url = f"http://127.0.0.1:{port}"
+    thread = threading.Thread(
+        target=lambda: app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False),
+        daemon=True,
+    )
+    thread.start()
+
+    role = "this view owns the four-step decisions" if owns_input else "read-only mirror"
+    console.print(Panel(f"[bold magenta]Game view:[/bold magenta] {url}\n[dim]{role}[/dim]", border_style="magenta", expand=True))
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
+    return bridge
 
 
 def _write_repo_map(red_agent: RedAgent, repo_map_dir: Path) -> None:
