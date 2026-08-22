@@ -1,0 +1,134 @@
+{
+ "image": "lpc_troll.png",
+ "frameWidth": 64,
+ "frameHeight": 64,
+ "columns": 13,
+ "rows": 21,
+ "animations": {
+  "spellcast_up": {
+   "start": 0,
+   "end": 6,
+   "frames": 7
+  },
+  "spellcast_left": {
+   "start": 13,
+   "end": 19,
+   "frames": 7
+  },
+  "spellcast_down": {
+   "start": 26,
+   "end": 32,
+   "frames": 7
+  },
+  "spellcast_right": {
+   "start": 39,
+   "end": 45,
+   "frames": 7
+  },
+  "thrust_up": {
+   "start": 52,
+   "end": 59,
+   "frames": 8
+  },
+  "thrust_left": {
+   "start": 65,
+   "end": 72,
+   "frames": 8
+  },
+  "thrust_down": {
+   "start": 78,
+   "end": 85,
+   "frames": 8
+  },
+  "thrust_right": {
+   "start": 91,
+   "end": 98,
+   "frames": 8
+  },
+  "walk_up": {
+   "start": 104,
+   "end": 112,
+   "frames": 9
+  },
+  "walk_left": {
+   "start": 117,
+   "end": 125,
+   "frames": 9
+  },
+  "walk_down": {
+   "start": 130,
+   "end": 138,
+   "frames": 9
+  },
+  "walk_right": {
+   "start": 143,
+   "end": 151,
+   "frames": 9
+  },
+  "slash_up": {
+   "start": 156,
+   "end": 161,
+   "frames": 6
+  },
+  "slash_left": {
+   "start": 169,
+   "end": 174,
+   "frames": 6
+  },
+  "slash_down": {
+   "start": 182,
+   "end": 187,
+   "frames": 6
+  },
+  "slash_right": {
+   "start": 195,
+   "end": 200,
+   "frames": 6
+  },
+  "shoot_up": {
+   "start": 208,
+   "end": 220,
+   "frames": 13
+  },
+  "shoot_left": {
+   "start": 221,
+   "end": 233,
+   "frames": 13
+  },
+  "shoot_down": {
+   "start": 234,
+   "end": 246,
+   "frames": 13
+  },
+  "shoot_right": {
+   "start": 247,
+   "end": 259,
+   "frames": 13
+  },
+  "idle_up": {
+   "start": 104,
+   "end": 104,
+   "frames": 1
+  },
+  "idle_left": {
+   "start": 117,
+   "end": 117,
+   "frames": 1
+  },
+  "idle_down": {
+   "start": 130,
+   "end": 130,
+   "frames": 1
+  },
+  "idle_right": {
+   "start": 143,
+   "end": 143,
+   "frames": 1
+  },
+  "hurt": {
+   "start": 260,
+   "end": 265,
+   "frames": 6
+  }
+ }
+}

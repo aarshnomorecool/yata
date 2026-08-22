@@ -1,0 +1,1084 @@
+==============================================================================
+YATA — visualization asset credits & licenses
+Generated: 2026-08-21
+==============================================================================
+
+Every asset in /assets is CC0, CC-BY, or CC-BY-SA. Nothing here is paid,
+'free for non-commercial', or otherwise restricted.
+
+QUICK ANSWER — what you must put in the game/demo:
+  * REQUIRED : everything under assets/characters/ and assets/monsters/*/lpc_*
+               (Liberated Pixel Cup art — CC-BY-SA 3.0 + GPL 3.0). Attribution
+               AND share-alike apply. See section 1 for the exact credit block.
+  * OPTIONAL : everything else (Kenney, KayKit, Dungeon Crawl Stone Soup tiles)
+               is CC0 / public domain — no attribution legally required, but
+               crediting them is good manners and costs one line.
+
+CC-BY-SA NOTE: the LPC sprites are share-alike. If you redistribute the sprite
+sheets themselves (or modified versions) you must license those image files
+under CC-BY-SA 3.0 as well. Your own game code is not affected by this — only
+the art files.
+
+==============================================================================
+1. CHARACTERS & LPC-STYLE MONSTERS  (composed sprite sheets)
+==============================================================================
+
+These sheets were assembled from the Universal LPC Spritesheet Character
+Generator asset library. Each is a 13 x 21 grid of 64x64 frames:
+
+    rows  0- 3  spellcast  (7 frames)   up / left / down / right
+    rows  4- 7  thrust     (8 frames)   up / left / down / right
+    rows  8-11  walk       (9 frames)   up / left / down / right   (frame 0 = idle)
+    rows 12-15  slash      (6 frames)   up / left / down / right
+    rows 16-19  shoot      (13 frames)  up / left / down / right
+    row  20     hurt/die   (6 frames)
+
+A matching <name>.json sits next to every sheet with the frame ranges already
+worked out for Phaser's this.anims.create().
+
+<name>_extended.png is the raw 13 x 46 generator output (adds watering, idle,
+jump, run, sit, emote, climb). Those extra rows exist on the body layers but
+NOT on most armour/clothing layers, so characters appear partly undressed
+there. Use the 21-row sheet unless you specifically need those animations.
+
+Generator / asset library:
+  https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
+  Original project: Liberated Pixel Cup (https://lpc.opengameart.org/)
+  Licenses: CC-BY-SA 3.0 and GPL 3.0 (dual). Some layers add OGA-BY 3.0.
+  ATTRIBUTION REQUIRED — yes, for every file listed below.
+
+------------------------------------------------------------------------------
+FILE : assets/characters/archer/lpc_archer_ranger_male.png  (+ .json, + _extended.png)
+ROLE : archer
+BODY : male
+LAYERS USED (in draw order):
+   z-1   weapon_ranged_bow_recurve    variant: dark
+   z0    shadow                       variant: shadow
+   z8    quiver                       variant: quiver
+   z10   body                         variant: light
+   z20   legs_pants                   variant: green
+   z25   feet_boots                   variant: brown
+   z60   torso_armour_leather         variant: leather
+   z100  heads_human_male             variant: light
+   z105  eyes                         variant: green
+   z120  hair_ponytail                variant: dark brown
+   z140  weapon_ranged_bow_recurve    variant: dark
+ARTISTS      : Benjamin K. Smith (BenCreating), Daniel Eddeland (daneeklu), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Manuel Riecke (MrBeast), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, adapted to v3 bases by bluecarrot16, bluecarrot16, dalonedrau, drjamgo@hotmail.com, gr3yh47, kheftel
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, Johannes Sjölund (wulax), Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-clothes-and-hair
+   https://opengameart.org/content/lpc-combat-armor-for-women
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/lpc-walk-animations-for-bows
+   https://opengameart.org/content/lpc-weapons-two-bows-a-spear-and-a-trident
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/characters/archer/lpc_archer_hooded_female.png  (+ .json, + _extended.png)
+ROLE : archer
+BODY : female
+LAYERS USED (in draw order):
+   z-1   weapon_ranged_bow_normal     variant: dark
+   z0    shadow                       variant: shadow
+   z8    quiver                       variant: quiver
+   z10   body                         variant: amber
+   z20   legs_pants                   variant: brown
+   z25   feet_boots                   variant: brown
+   z35   torso_clothes_tunic          variant: green
+   z100  heads_human_female           variant: amber
+   z105  eyes                         variant: blue
+   z120  hair_long                    variant: black
+   z130  hat_hood_cloth               variant: green
+   z140  weapon_ranged_bow_normal     variant: dark
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Manuel Riecke (MrBeast), Marcel van de Steeg (MadMarcel), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, walk animations by pvigier
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, OGA-BY 3.0, split into layers and tweaked for v3 character bases by bluecarrot16. pvigier has agreed to license this sheet as OGA-BY 3.0+.
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   Johannes Sjölund (wulax), Pierre Vigier (pvigier)
+   OGA-BY 3.0+, GPL 3.0, CC-BY 4.0
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/
+   https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-clothes-and-hair
+   https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/lpc-walk-animations-for-bows
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/characters/sage/lpc_cleric_female.png  (+ .json, + _extended.png)
+ROLE : sage
+BODY : female
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z9    weapon_magic_simple          variant: simple
+   z10   body                         variant: light
+   z15   feet_sandals                 variant: brown
+   z35   torso_clothes_robe           variant: white
+   z81   neck_amulet_cross            variant: brass_blue
+   z100  heads_human_female           variant: light
+   z105  eyes                         variant: blue
+   z120  hair_long_straight           variant: blonde
+   z140  weapon_magic_simple          variant: simple
+ARTISTS      : Benjamin K. Smith (BenCreating), Dr. Jamgo, Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Luke Mehl, Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, thecilekli
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/
+   https://opengameart.org/content/female-mage-clothing-set
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-hair
+   https://opengameart.org/content/lpc-jewelry
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-long-straight-hair-with-12-colors
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-roman-armor
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-simple-staff
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/characters/sage/lpc_wizard_male.png  (+ .json, + _extended.png)
+ROLE : sage
+BODY : male
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z9    weapon_magic_gnarled         variant: dark
+   z10   body                         variant: light
+   z15   feet_shoes                   variant: brown
+   z20   legs_pantaloons              variant: blue
+   z35   torso_clothes_longsleeve     variant: blue
+   z100  heads_human_male_elderly     variant: light
+   z105  eyes                         variant: blue
+   z110  beards_beard                 variant: white
+   z130  hat_magic_wizard             variant: blue
+   z140  weapon_magic_gnarled         variant: dark
+ARTISTS      : Benjamin K. Smith (BenCreating), Carlo Enrico Victoria (Nemisys), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Mark Weyer, Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, Tuomo Untinen (reemax), bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel
+LICENSES     : CC-BY 3.0, CC-BY 4.0, CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, OGA-BY 3.0, OGA-BY 3.0+
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-items-and-game-effects
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-more-weapons
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pirates
+   https://opengameart.org/content/lpc-pointed-hats
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-revised-elders
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/lpc-white-beard
+   https://opengameart.org/content/more-lpc-clothes-and-hair
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/characters/knight/lpc_knight_steel_male.png  (+ .json, + _extended.png)
+ROLE : knight
+BODY : male
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z4    shield_heater_pattern_cross  variant: red
+   z9    weapon_sword_arming          variant: steel
+   z10   body                         variant: light
+   z20   legs_armour                  variant: steel
+   z26   feet_boots_plate             variant: steel
+   z50   torso_chainmail              variant: gray
+   z60   torso_armour_plate           variant: steel
+   z60   arms_armour                  variant: steel
+   z65   shoulders_plate              variant: steel
+   z100  heads_human_male             variant: light
+   z105  eyes                         variant: blue
+   z112  shield_heater_pattern_cross  variant: red
+   z130  hat_helmet_barbuta           variant: steel
+   z140  weapon_sword_arming          variant: steel
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, ElizaWy; walk and down by JaidynReiman, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Mark Weyer, Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, adapted to female base by makrohn, bluecarrot16, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, recolor by bigbeargames
+LICENSES     : CC-BY 3.0, CC-BY 3.0+, CC-BY 4.0, CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, OGA-BY 3.0, OGA-BY 3.0+, adapted to teen base from male/female by JaidynReiman, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, recolor by bigbeargames
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Johannes Sjölund (wulax)
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+   OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+   color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+   http://opengameart.org/content/lpc-clothing-updates
+   https://github.com/ElizaWy/LPC/tree/main/Characters/Props/Sword%2001%20-%20Arming%20Sword
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/expanded-ulpc-head-accessories-facial-assets-hats-helmets
+   https://opengameart.org/content/expanded-universal-lpc-spritesheet-idle-run-jump-lpc-revised-combat-and-assets
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-combat-armor-for-women
+   https://opengameart.org/content/lpc-helmets
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-relm-outfit-pieces-2-kimonos-2-sleeves-2-boots-tabi-socks
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-shields
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+   run/jump/sit/climb/revised combat by JaidynReiman
+------------------------------------------------------------------------------
+FILE : assets/characters/knight/lpc_knight_gold_female.png  (+ .json, + _extended.png)
+ROLE : knight
+BODY : female
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z2    shield_crusader              variant: crusader
+   z9    weapon_sword_longsword       variant: longsword
+   z10   body                         variant: olive
+   z20   legs_armour                  variant: gold
+   z26   feet_boots_plate             variant: gold
+   z60   torso_armour_plate           variant: gold
+   z60   arms_armour                  variant: gold
+   z65   shoulders_plate              variant: gold
+   z100  heads_human_female           variant: olive
+   z105  eyes                         variant: brown
+   z110  shield_crusader              variant: crusader
+   z120  hair_ponytail                variant: raven
+   z140  weapon_sword_longsword       variant: longsword
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Manuel Riecke (MrBeast), Mark Weyer, Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, adapted to female base by makrohn, bluecarrot16, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, recolor by bigbeargames
+LICENSES     : CC-BY 3.0+, CC-BY-SA 3.0, CC0, GPL 3.0, OGA-BY 3.0, OGA-BY 3.0+, adapted to teen base from male/female by JaidynReiman, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, recolor by bigbeargames
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Johannes Sjölund (wulax)
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+   OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+   color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-combat-armor-for-women
+   https://opengameart.org/content/lpc-extended-weapon-animations
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-relm-outfit-pieces-2-kimonos-2-sleeves-2-boots-tabi-socks
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-shields
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+   run/jump/sit/climb/revised combat by JaidynReiman
+------------------------------------------------------------------------------
+FILE : assets/characters/scholar/lpc_scholar_female.png  (+ .json, + _extended.png)
+ROLE : scholar
+BODY : female
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z10   body                         variant: light
+   z15   feet_shoes                   variant: black
+   z35   torso_clothes_robe           variant: blue
+   z100  heads_human_female           variant: light
+   z105  eyes                         variant: brown
+   z115  facial_glasses_halfmoon      variant: gold
+   z120  hair_bangs_bun               variant: dark brown
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Luke Mehl, Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 3.0, OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   http://opengameart.org/content/lpc-clothing-updates
+   https://github.com/ElizaWy/LPC/blob/main/Characters/Hair
+   https://github.com/ElizaWy/LPC/tree/main/Characters/Head%20Accessories
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/
+   https://opengameart.org/content/expanded-universal-lpc-spritesheet-idle-run-jump-lpc-revised-combat-and-assets
+   https://opengameart.org/content/female-mage-clothing-set
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-hair
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/characters/scholar/lpc_librarian_male_elderly.png  (+ .json, + _extended.png)
+ROLE : scholar
+BODY : male
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z10   body                         variant: taupe
+   z15   feet_shoes                   variant: black
+   z20   legs_formal                  variant: brown
+   z55   torso_jacket_frock           variant: brown
+   z100  heads_human_male_elderly     variant: taupe
+   z105  eyes                         variant: brown
+   z110  beards_medium                variant: white
+   z115  facial_glasses_round         variant: gold
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), Thane Brimhall (pennomi), TheraHedwig, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, laetissima
+LICENSES     : CC-BY 3.0, CC-BY-SA 3.0, CC0, GPL 3.0, OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   http://opengameart.org/content/lpc-clothing-updates
+   https://github.com/ElizaWy/LPC/tree/main/Characters/Hair
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/clothing-facial-features-and-ui-elements
+   https://opengameart.org/content/expanded-universal-lpc-spritesheet-idle-run-jump-lpc-revised-combat-and-assets
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-2-characters
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-gentleman
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pirates
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-revised-elders
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/monsters/tier1_goblin/lpc_goblin.png  (+ .json, + _extended.png)
+ROLE : tier1_goblin
+BODY : male
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z10   body                         variant: green
+   z20   legs_shorts                  variant: brown
+   z35   torso_clothes_sleeveless     variant: brown
+   z100  heads_goblin                 variant: green
+   z105  eyes                         variant: red
+ARTISTS      : Benjamin K. Smith (BenCreating), Bluecarrot16, Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Marcel van de Steeg (MadMarcel), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, William.Thomsponj, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel
+LICENSES     : CC-BY 4.0, CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   http://opengameart.org/content/lpc-clothing-updates
+   https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/expanded-universal-lpc-spritesheet-idle-run-jump-lpc-revised-combat-and-assets
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle
+   https://opengameart.org/content/lpc-folk
+   https://opengameart.org/content/lpc-goblin
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pirates
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/more-lpc-clothes-and-hair
+   https://opengameart.org/content/shadow-for-lpc-sprite
+------------------------------------------------------------------------------
+FILE : assets/monsters/tier2_orc/lpc_orc.png  (+ .json, + _extended.png)
+ROLE : tier2_orc
+BODY : muscular
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z9    weapon_blunt_waraxe          variant: waraxe
+   z10   body                         variant: dark_green
+   z20   legs_pants                   variant: black
+   z25   feet_boots                   variant: black
+   z60   torso_armour_leather         variant: leather
+   z100  heads_orc_male               variant: dark_green
+   z105  eyes                         variant: red
+   z140  weapon_blunt_waraxe          variant: waraxe
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Joe White, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, Zi Ye, adapted to v3 bases by bluecarrot16, bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, Johannes Sjölund (wulax), Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/four-characters-my-lpc-entries
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-clothes-and-hair
+   https://opengameart.org/content/lpc-combat-armor-for-women
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-male-sheets
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-medieval-weapons
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+   https://opengameart.org/content/sinbad-the-ogre
+------------------------------------------------------------------------------
+FILE : assets/monsters/tier3_troll/lpc_troll.png  (+ .json, + _extended.png)
+ROLE : tier3_troll
+BODY : muscular
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z10   body                         variant: pale_green
+   z20   legs_fur                     variant: brown
+   z100  heads_troll                  variant: pale_green
+   z105  eyes                         variant: yellow
+ARTISTS      : AntumDeluge, Benjamin K. Smith (BenCreating), Charles Sanchez (CharlesGabriel), Daniel Eddeland (daneeklu), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Lanea Zimmerman (Sharm), Manuel Riecke (MrBeast), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, Tuomo Untinen (reemax), bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel
+LICENSES     : CC-BY 3.0, CC-BY-SA 3.0, CC0, GPL 3.0, OGA-BY 3.0
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-expanded-pants
+   https://opengameart.org/content/lpc-faun-and-minotaur
+   https://opengameart.org/content/lpc-folk
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/musclemanogreminotaur
+   https://opengameart.org/content/shadow-for-lpc-sprite
+   https://opengameart.org/content/trolls-0
+------------------------------------------------------------------------------
+FILE : assets/monsters/tier4_dragon/lpc_dragonkin.png  (+ .json, + _extended.png)
+ROLE : tier4_dragon
+BODY : muscular
+LAYERS USED (in draw order):
+   z0    shadow                       variant: shadow
+   z10   body                         variant: brown
+   z60   torso_armour_plate           variant: copper
+   z100  heads_lizard_male            variant: brown
+   z105  eyes                         variant: yellow
+   z126  head_horns_curled            variant: black
+ARTISTS      : Benjamin K. Smith (BenCreating), Durrani, Eliza Wyatt (ElizaWy), ElizaWy, Evert, JaidynReiman, Johannes Sj?lund (wulax), Johannes Sjölund (wulax), Mark Weyer, Matthew Krohn (makrohn), MuffinElZangano, Nila122, Pierre Vigier (pvigier), Sander Frenken (castelonia), Stephen Challener (Redshrike), TheraHedwig, adapted to female base by makrohn, bluecarrot16, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, dalonedrau, drjamgo@hotmail.com, kheftel, recolor by bigbeargames
+LICENSES     : CC-BY-SA 3.0, CC0, GPL 3.0, OGA-BY 3.0, adapted to teen base from male/female by JaidynReiman, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, recolor by bigbeargames
+ATTRIBUTION  : REQUIRED (CC-BY-SA 3.0 / GPL 3.0)
+SOURCE PAGES :
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Johannes Sjölund (wulax)
+   JaidynReiman, bluecarrot16, Michael Whitlock (bigbeargames), Matthew Krohn (makrohn), Johannes Sjölund (wulax)
+   OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+   color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+   http://opengameart.org/content/lpc-clothing-updates
+   https://gitlab.com/vagabondgame/lpc-characters
+   https://opengameart.org/content/drakes-and-lizardfolk
+   https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles
+   https://opengameart.org/content/lpc-7-womens-shirts
+   https://opengameart.org/content/lpc-barbarian-sprite-base
+   https://opengameart.org/content/lpc-be-seated
+   https://opengameart.org/content/lpc-character-bases
+   https://opengameart.org/content/lpc-child-standing-template
+   https://opengameart.org/content/lpc-children-walk-animation
+   https://opengameart.org/content/lpc-combat-armor-for-women
+   https://opengameart.org/content/lpc-jump-expanded
+   https://opengameart.org/content/lpc-ladies
+   https://opengameart.org/content/lpc-lizard-headgear
+   https://opengameart.org/content/lpc-male-jumping-animation-by-durrani
+   https://opengameart.org/content/lpc-medieval-fantasy-character-sprites
+   https://opengameart.org/content/lpc-muscular-hurt-animation
+   https://opengameart.org/content/lpc-muscular-swing-animation
+   https://opengameart.org/content/lpc-pregnancy-bases-maternity-wear
+   https://opengameart.org/content/lpc-revised-character-basics
+   https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle
+   https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads
+   https://opengameart.org/content/lpc-teen-unisex-base-clothes
+   https://opengameart.org/content/shadow-for-lpc-sprite
+   run/jump/sit/climb/revised combat by JaidynReiman
+
+------------------------------------------------------------------------------
+READY-TO-PASTE CREDIT BLOCK FOR THE LPC ART
+------------------------------------------------------------------------------
+
+  Character and monster sprites assembled from the Liberated Pixel Cup (LPC)
+  asset library via the Universal LPC Spritesheet Character Generator.
+  Licensed CC-BY-SA 3.0 and GPL 3.0.
+  https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator
+
+  Artists:
+    - AntumDeluge
+    - Benjamin K. Smith (BenCreating)
+    - Bluecarrot16
+    - Carlo Enrico Victoria (Nemisys)
+    - Charles Sanchez (CharlesGabriel)
+    - Daniel Eddeland (daneeklu)
+    - Dr. Jamgo
+    - Durrani
+    - Eliza Wyatt (ElizaWy)
+    - ElizaWy
+    - ElizaWy; walk and down by JaidynReiman
+    - Evert
+    - JaidynReiman
+    - Joe White
+    - Johannes Sj?lund (wulax)
+    - Johannes Sjölund (wulax)
+    - Lanea Zimmerman (Sharm)
+    - Luke Mehl
+    - Manuel Riecke (MrBeast)
+    - Marcel van de Steeg (MadMarcel)
+    - Mark Weyer
+    - Matthew Krohn (makrohn)
+    - Michael Whitlock (bigbeargames)
+    - MuffinElZangano
+    - Nila122
+    - Pierre Vigier (pvigier)
+    - Sander Frenken (castelonia)
+    - Stephen Challener (Redshrike)
+    - Thane Brimhall (pennomi)
+    - TheraHedwig
+    - Tuomo Untinen (reemax)
+    - William.Thomsponj
+    - Zi Ye
+    - adapted to female base by makrohn
+    - adapted to v3 bases by bluecarrot16
+    - bluecarrot16
+    - color reduced to 7 colors and adapted to v3 bases by bluecarrot16
+    - dalonedrau
+    - drjamgo@hotmail.com
+    - gr3yh47
+    - kheftel
+    - laetissima
+    - recolor by bigbeargames
+    - thecilekli
+    - walk animations by pvigier
+  Licenses present across these layers: CC-BY 3.0, CC-BY 3.0+, CC-BY 4.0, CC-BY-SA 3.0, CC0, GPL 2.0, GPL 3.0, Johannes Sjölund (wulax), Matthew Krohn (makrohn), Michael Whitlock (bigbeargames), OGA-BY 3.0, OGA-BY 3.0+, adapted to teen base from male/female by JaidynReiman, color reduced to 7 colors and adapted to v3 bases by bluecarrot16, recolor by bigbeargames, split into layers and tweaked for v3 character bases by bluecarrot16. pvigier has agreed to license this sheet as OGA-BY 3.0+.
+
+==============================================================================
+2. TILESETS, UI AND 2D EXTRAS
+==============================================================================
+
+FOLDER      : assets/environment/town/kenney_rpg_urban_pack   (495 files)
+ASSET       : Kenney (kenney.nl) pack "kenney_rpgurbanpack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/environment/town/kenney_rpg_pack   (235 files)
+ASSET       : Kenney (kenney.nl) pack "kenneyrpgpack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/environment/town/kenney_micro_roguelike   (290 files)
+ASSET       : Kenney (kenney.nl) pack "kenney_microroguelike_1.2"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/environment/dungeon/kenney_roguelike_pack   (11 files)
+ASSET       : Kenney (kenney.nl) pack "roguelike-pack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/environment/dungeon/kenney_roguelike_caves   (8 files)
+ASSET       : Kenney (kenney.nl) pack "roguelike-cave-pack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/environment/dungeon/kenney_roguelike_indoor   (8 files)
+ASSET       : Kenney (kenney.nl) pack "roguelikeindoor_updated"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_ui_pack   (162 files)
+ASSET       : Kenney (kenney.nl) pack "uipack_fixed"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_pixel_ui_pack   (40 files)
+ASSET       : Kenney (kenney.nl) pack "pixeluipack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_game_icons   (432 files)
+ASSET       : Kenney (kenney.nl) pack "gameicons"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_game_icons_expansion   (806 files)
+ASSET       : Kenney (kenney.nl) pack "gameicons-expansion"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_rune_pack   (690 files)
+ASSET       : Kenney (kenney.nl) pack "kenney_runepack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/ui/kenney_cartography_pack   (181 files)
+ASSET       : Kenney (kenney.nl) pack "cartographypack"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/monsters/_alternatives_kenney_animated_enemies   (184 files)
+ASSET       : Kenney (kenney.nl) pack "moreenemiesanimations"
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+FOLDER      : assets/monsters/tier1_goblin/dcss_goblins   (13 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (mon/humanoids)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/monsters/tier2_orc/dcss_orcs   (11 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (mon/humanoids/orcs)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/monsters/tier3_troll/dcss_trolls_ogres   (10 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (mon/humanoids)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/monsters/tier4_dragon/dcss_dragons   (25 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (mon/dragons)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/monsters/tier4_dragon/dcss_draconians   (17 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (mon/draco)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/floor   (626 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/floor)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/wall   (913 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/wall)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/doors   (91 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/doors)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/traps   (41 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/traps)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/decor   (21 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/decor)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/statues   (62 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/statues)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/altars   (82 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/altars)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/environment/dungeon/dcss_dungeon_tiles/gateways   (116 files)
+ASSET       : Dungeon Crawl Stone Soup tileset (dngn/gateways)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/scrolls   (34 files)
+ASSET       : Dungeon Crawl Stone Soup — scroll icons (quest-log / notice-board flavour)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/parchment   (69 files)
+ASSET       : Dungeon Crawl Stone Soup — parchment icons
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/books   (31 files)
+ASSET       : Dungeon Crawl Stone Soup — book / tome icons (memory agent)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/shields   (20 files)
+ASSET       : Dungeon Crawl Stone Soup — shield icons
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/potions   (55 files)
+ASSET       : Dungeon Crawl Stone Soup — potion icons (repair / heal actions)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/class_badges   (28 files)
+ASSET       : Dungeon Crawl Stone Soup — class/background badges (hunter, priest, fighter, wizard = the four agent roles)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/dcss_icons/spell_icons   (353 files)
+ASSET       : Dungeon Crawl Stone Soup — spell/ability icons (generic action icons)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/crawl/crawl
+
+FOLDER      : assets/ui/kenney_hud_hearts   (36 files)
+ASSET       : Kenney Platformer Pack Redux — HUD set (full/half/empty hearts, digits, gems, keys)
+LICENSE     : CC0 1.0 (public domain)
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/ETdoFresh/kenney.nl
+
+==============================================================================
+3. RETRO 3D / LOW-POLY
+==============================================================================
+
+FOLDER      : assets/3d/characters/_kaykit_adventurers_pack   (84 files, ~22 MB)
+ASSET       : KayKit Adventurers Character Pack 1.0 (Knight / Rogue / Rogue_Hooded / Mage / Barbarian + weapons)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FOLDER      : assets/3d/monsters/_kaykit_skeletons_pack   (44 files, ~24 MB)
+ASSET       : KayKit Skeletons Character Pack 1.0 (Minion / Rogue / Warrior / Mage)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0
+
+FOLDER      : assets/3d/dungeon/kaykit_dungeon_remastered   (643 files, ~36 MB)
+ASSET       : KayKit Dungeon Remastered 1.0 (200+ dungeon pieces & props)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0
+
+FOLDER      : assets/3d/town/kaykit_city_builder_bits   (216 files, ~6 MB)
+ASSET       : KayKit City Builder Bits 1.0
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0
+
+FOLDER      : assets/3d/town/kaykit_medieval_hexagon   (1020 files, ~33 MB)
+ASSET       : KayKit Medieval Hexagon Pack 1.0
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0
+
+FOLDER      : assets/3d/dungeon/kaykit_halloween_bits   (278 files, ~6 MB)
+ASSET       : KayKit Halloween Bits 1.0 (bones, graves, spooky props)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Halloween-Bits-1.0
+
+FOLDER      : assets/3d/town/kenney_fantasy_town_kit   (1382 files, ~11 MB)
+ASSET       : Kenney Fantasy Town Kit 1.0
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/fantasy-town-kit
+
+FOLDER      : assets/3d/town/kenney_castle_kit   (464 files, ~4 MB)
+ASSET       : Kenney Castle Kit 1.0
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/castle-kit
+
+FOLDER      : assets/3d/town/kenney_medieval_town_base   (139 files, ~0 MB)
+ASSET       : Kenney Medieval Town Base
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/
+
+FOLDER      : assets/3d/dungeon/kenney_graveyard_kit   (710 files, ~7 MB)
+ASSET       : Kenney Graveyard Kit 3
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/graveyard-kit
+
+FOLDER      : assets/3d/props/kenney_nature_kit   (2960 files, ~17 MB)
+ASSET       : Kenney Nature Kit 2.1
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/nature-kit
+
+FOLDER      : assets/3d/characters/_kenney_blocky_characters   (33 files, ~0 MB)
+ASSET       : Kenney Blocky Characters
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/blocky-characters
+
+FOLDER      : assets/3d/characters/_kenney_modular_characters   (438 files, ~1 MB)
+ASSET       : Kenney Modular Characters
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/modular-characters
+
+FOLDER      : assets/3d/town/kenney_medieval_rts   (261 files, ~1 MB)
+ASSET       : Kenney Medieval RTS Pack
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/medieval-rts
+
+FOLDER      : assets/environment/dungeon/kenney_isometric_dungeon   (751 files, ~13 MB)
+ASSET       : Kenney Dungeon Pack 2.3 (2D isometric dungeon sprites + characters)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/dungeon-pack
+
+FOLDER      : assets/environment/town/kenney_isometric_library   (295 files, ~5 MB)
+ASSET       : Kenney Library Pack 2.1 (2D isometric library / archive room — fits the scholar scene)
+LICENSE     : CC0 1.0
+ATTRIBUTION : NOT required (public domain dedication)
+SOURCE      : https://kenney.nl/assets/library-pack
+
+Note on the 3D role folders: assets/3d/characters/<role>/ and
+assets/3d/monsters/<tier>/ contain copies of the specific .glb files picked for
+that role. The full packs they came from (including weapons, shields,
+spellbooks, quivers and the OBJ/GLTF variants) live in the sibling folders
+prefixed with an underscore.
+
+
+------------------------------------------------------------------------------
+3b. 3D ROLE PICKS (individual files placed per role)
+------------------------------------------------------------------------------
+
+FILE        : assets/3d/characters/archer/Rogue_Hooded.glb
+ASSET       : KayKit Adventurers — Rogue (Hooded), rigged + animated
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/characters/archer/Rogue.glb
+ASSET       : KayKit Adventurers — Rogue, rigged + animated
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/characters/sage/Mage.glb
+ASSET       : KayKit Adventurers — Mage, rigged + animated
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/characters/knight/Knight.glb
+ASSET       : KayKit Adventurers — Knight, rigged + animated
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/characters/knight/Barbarian.glb
+ASSET       : KayKit Adventurers — Barbarian (alternative), rigged + animated
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/characters/scholar/Mage_as_scholar.glb
+ASSET       : KayKit Adventurers — Mage reused as the scholar; pair it with spellbook_open.gltf / spellbook_closed.gltf from the pack folder
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+
+FILE        : assets/3d/monsters/tier1_goblin/Skeleton_Minion.glb
+ASSET       : KayKit Skeletons — Minion (smallest, lowest threat)
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0
+
+FILE        : assets/3d/monsters/tier2_orc/Skeleton_Rogue.glb
+ASSET       : KayKit Skeletons — Rogue
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0
+
+FILE        : assets/3d/monsters/tier3_troll/Skeleton_Warrior.glb
+ASSET       : KayKit Skeletons — Warrior (armoured, heavier)
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0
+
+FILE        : assets/3d/monsters/tier4_dragon/Skeleton_Mage.glb
+ASSET       : KayKit Skeletons — Mage, used as the top-tier boss stand-in (no CC0 low-poly dragon was reachable; see section 4)
+LICENSE     : CC0 1.0  (Kay Lousberg / KayKit)
+ATTRIBUTION : NOT required
+SOURCE      : https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0
+==============================================================================
+4. HOUSEKEEPING
+==============================================================================
+
+Dungeon Crawl Stone Soup tiles: DCSS states that the majority of its tiles are
+released under CC0, with a documented list of tiles whose ownership could not
+be confirmed. Every file copied here was filtered against that exclusion list
+(https://github.com/crawl/tiles -> TILES_UNDER_UNKNOWN_LICENSE.md) before being
+included, so nothing on that list is in this bundle.
+
+Kenney assets came from the ETdoFresh/kenney.nl GitHub mirror of kenney.nl.
+Each pack keeps its original License.txt. All Kenney assets are CC0 1.0.
+
+KayKit assets came from Kay Lousberg's own GitHub organisation
+(github.com/KayKit-Game-Assets). Each pack keeps its original LICENSE.txt.
+All KayKit packs here are CC0 1.0.
+
+NOT INCLUDED (blocked from this sandbox's network, download manually if wanted):
+  * Quaternius CC0 low-poly packs      https://quaternius.com/
+  * Poly.pizza CC0 model library       https://poly.pizza/
+  * itch.io free asset packs           https://itch.io/game-assets/free
+  * Direct kenney.nl / opengameart.org downloads (the mirrors above were used
+    instead — same files, same licenses)
+  There is no CC0 low-poly DRAGON in this bundle; Quaternius' "Fantasy
+  Monsters"/"Dragons" packs (CC0) are the obvious fill-in. The 2D dragons in
+  assets/monsters/tier4_dragon/dcss_dragons are CC0 and ready to use.
+
