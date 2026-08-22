@@ -28,6 +28,12 @@ from llm_client import LLMClient
 console = Console()
 
 
+# Same figure the canvas renderer uses (game/server.py): real XP shown to
+# the player is derived from VALIDATOR's own severity weighting, never
+# invented.
+XP_PER_RISK_POINT = 4
+
+
 VULNERABILITY_MAPPING = {
     "SQL Injection": {
         "owasp": "A03:2021 – Injection",
@@ -720,6 +726,7 @@ def _run_repository(
 
         aborted_by_user = False
         battery_summary = "n/a"
+        battery_results_payload: list[dict] = []
         relative_file = str(finding.metadata.get("relative_file", finding.affected_file))
 
         event_log.write(
@@ -761,6 +768,9 @@ def _run_repository(
             human_interventions += 1
             if outcome.battery is not None:
                 battery_summary = f"{outcome.battery.blocked_count}/{outcome.battery.total}"
+                battery_results_payload = [
+                    {"payload": r.payload, "blocked": r.blocked} for r in outcome.battery.results
+                ]
             if outcome.patch_result is not None:
                 patches_generated += outcome.retries_used + 1
 
@@ -872,7 +882,6 @@ def _run_repository(
 
             # MUTATOR also runs outside interactive mode, so safe/apply runs
             # report a real battery result rather than skipping re-attack.
-            battery_results_payload: list[dict] = []
             if patch_succeeded and mutator.get_battery(finding.vulnerability_type):
                 battery = mutator.run_battery(patch_result.patched_root, finding)
                 battery_summary = f"{battery.blocked_count}/{battery.total}"
@@ -979,9 +988,13 @@ def _run_repository(
         })
         _emit(dashboard, "workflow_step", {
             "step": 3, "passed": patch_succeeded, "battery": battery_summary,
+            "battery_results": battery_results_payload,
         })
         if patch_succeeded:
-            _emit(dashboard, "monster_defeated", {"vuln": finding.vulnerability_type})
+            _emit(dashboard, "monster_defeated", {
+                "vuln": finding.vulnerability_type,
+                "xp": Referee.RISK_WEIGHTS.get(finding.vulnerability_type, 20) * XP_PER_RISK_POINT,
+            })
             _emit(dashboard, "workflow_step", {"step": 4})
         else:
             _emit(dashboard, "monster_hit", {"vuln": finding.vulnerability_type})
@@ -1113,6 +1126,11 @@ def _run_repository(
         verification_result=verification_result,
         report_paths={k: str(v) for k, v in report_paths.items()},
     )
+    _emit(dashboard, "run_complete", {
+        "score_before": score_before_all, "score_after": final_score,
+        "vulnerabilities_found": len(discovered_findings), "vulnerabilities_healed": healed_count,
+        "verification_result": verification_result,
+    })
 
     findings_data = []
     for f in all_findings.values():

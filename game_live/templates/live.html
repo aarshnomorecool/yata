@@ -647,6 +647,7 @@
         };
 
         const deliveryCart = { active: false, x: 0, y: 0, tx: 0, ty: 0, hasScroll: true };
+        const noticeBoard = { x: 0, y: 0 };
 
         /* ── CITIZENS (walk horizontally, no spinning) ── */
         const citizens = [];
@@ -669,6 +670,11 @@
             defenders.healer.baseX = W * 0.30; defenders.healer.baseY = courtY + 60;
             defenders.scholar.x = W * 0.50; defenders.scholar.y = courtY + 50;
             defenders.scholar.baseX = W * 0.50; defenders.scholar.baseY = courtY + 50;
+
+            // Herald's Notice Board -- REPORTER has no separate sprite, like
+            // MUTATOR; it is a trait of this board, which SCHOLAR visits after
+            // every real patch confirmation and where the final report posts.
+            noticeBoard.x = W * 0.62; noticeBoard.y = courtY - 10;
 
             Object.keys(defenders).forEach(k => {
                 defenders[k].targetX = defenders[k].x;
@@ -770,6 +776,44 @@
             showFloatingText('CARRIER DISPATCHED: ' + vulnTitle, '#fbbf24', deliveryCart.x - 40, deliveryCart.y - 30);
         }
 
+        // SCHOLAR: dispatched once VALIDATOR's real re-attack confirms the
+        // patch held (monster_defeated). Walks house -> Notice Board -> home.
+        function scholarRecordVictory(xp) {
+            if (!gameState.activeBuilding) return;
+            const b = gameState.activeBuilding;
+            defenders.scholar.targetX = b.x;
+            defenders.scholar.targetY = b.y + 55;
+            defenders.scholar.patrolState = 'recording_walk';
+            defenders.scholar.recordPhase = 'to_house';
+            defenders.scholar.pendingXp = xp;
+        }
+
+        // MUTATOR: one real strike per battery payload (mutator_agent.py's
+        // actual re-attack results, streamed from the backend as
+        // battery_results) -- not a fabricated tick.
+        function mutatorStrike(r) {
+            if (!gameState.activeBuilding) return;
+            defenders.validator.animState = 'action';
+            defenders.validator.animFrame = 0;
+            setTimeout(function() { defenders.validator.animState = 'idle'; }, 260);
+            gameState.strikeFlash = { color: r.blocked ? '#22c55e' : '#ef4444', until: gameState.time + 0.35 };
+            logTelemetry('mutator', (r.blocked ? 'BLOCKED' : 'BYPASS SURVIVED') + ': ' + r.payload);
+        }
+
+        // REPORTER has no separate sprite -- like MUTATOR, it is a trait of
+        // the Notice Board. Posts once the real report is written to disk.
+        function reporterPost(d) {
+            gameState.noticeScroll = {
+                verdict: d.verification_result,
+                healed: d.vulnerabilities_healed,
+                found: d.vulnerabilities_found,
+                scoreBefore: d.score_before,
+                scoreAfter: d.score_after,
+            };
+            showFloatingText('HERALD POSTS THE FINAL REPORT', '#fbbf24', noticeBoard.x, noticeBoard.y - 30);
+            logTelemetry('reporter', 'Report posted: ' + d.verification_result + ', score ' + d.score_before + ' -> ' + d.score_after);
+        }
+
         function addExperience(amount, goldReward) {
             goldReward = goldReward || 0;
             gameState.xp += amount;
@@ -866,10 +910,16 @@
                 file: vulnData.file
             };
             
-            // Hunter attacks the building to confirm bug
+            // HUNTER fires a ranged shot to confirm the exploit -- stays put
+            // (ranged), the arrow itself travels to the house.
             defenders.hunter.animState = 'action';
             defenders.hunter.animFrame = 0;
             setTimeout(() => defenders.hunter.animState = 'idle', 800);
+            gameState.hunterShot = {
+                fromX: defenders.hunter.x, fromY: defenders.hunter.y - 30,
+                toX: gameState.activeBuilding.x, toY: gameState.activeBuilding.y - 30,
+                until: gameState.time + 0.35,
+            };
             
             const monster = {
                 x: window.innerWidth * 0.5,
@@ -945,7 +995,7 @@
                 const dy = d.targetY - d.y;
                 const dist = Math.hypot(dx, dy);
 
-                if (d.patrolState === 'chasing' || d.patrolState === 'walking' || d.patrolState === 'healing_walk' || d.patrolState === 'validating_walk') {
+                if (d.patrolState === 'chasing' || d.patrolState === 'walking' || d.patrolState === 'healing_walk' || d.patrolState === 'validating_walk' || d.patrolState === 'recording_walk') {
                     if (dist > 2) {
                         const moveSpeed = (d.patrolState === 'chasing') ? d.speed : d.speed * 0.3;
                         d.x += (dx / dist) * moveSpeed;
@@ -971,6 +1021,28 @@
                 // Advance frame
                 if (animTick % 6 === 0) d.animFrame++;
             });
+
+            // SCHOLAR: two-leg walk from the just-repaired house to the
+            // Notice Board, recording the win, per the exact spec -- not the
+            // generic single-target patrol the other defenders use.
+            const sch = defenders.scholar;
+            if (sch.patrolState === 'recording_walk') {
+                const dx = sch.targetX - sch.x, dy = sch.targetY - sch.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist <= 3) {
+                    if (sch.recordPhase === 'to_house') {
+                        showFloatingText('+' + sch.pendingXp + ' XP', '#22c55e', sch.x, sch.y - 40);
+                        logTelemetry('scholar', 'Signature recorded into repository memory (+' + sch.pendingXp + ' XP).');
+                        sch.targetX = noticeBoard.x;
+                        sch.targetY = noticeBoard.y + 10;
+                        sch.recordPhase = 'to_board';
+                    } else if (sch.recordPhase === 'to_board') {
+                        sch.recordPhase = 'done';
+                        sch.patrolState = 'waiting';
+                        sch.waitTime = 1.2;
+                    }
+                }
+            }
 
             // Citizens walk horizontally
             citizens.forEach(function(c) {
@@ -1177,6 +1249,92 @@
                 ctx.font = '5px "Press Start 2P"';
                 ctx.fillStyle = '#a1947c';
                 ctx.fillText('CLICK TO INSPECT', cx + cw/2, cy + ch + 16);
+            }
+
+            // 7b. THREAT STATE OVERLAY -- real state, not decoration.
+            // 'broken'/'validating': the house is visibly damaged
+            // (broken_house.png). 'healing': a pulsing green glow while
+            // HEALER's patch is synthesized. shieldFlash/strikeFlash are
+            // one-shot bursts fired directly off real backend events
+            // (patch confirmed / one real MUTATOR re-attack).
+            if (gameState.hunterShot && gameState.time < gameState.hunterShot.until) {
+                const s = gameState.hunterShot;
+                const remain = s.until - gameState.time;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, remain / 0.35));
+                ctx.strokeStyle = '#f0e0b8';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(s.fromX, s.fromY); ctx.lineTo(s.toX, s.toY); ctx.stroke();
+                ctx.restore();
+            }
+
+            if (gameState.activeBuilding) {
+                const ab = gameState.activeBuilding;
+                const bx = ab.x, by = ab.y;
+
+                if (ab.state === 'broken' || ab.state === 'validating') {
+                    const brokenImg = assetImages['broken_house'];
+                    if (brokenImg && brokenImg.complete && brokenImg.naturalWidth > 0) {
+                        ctx.globalAlpha = 0.92;
+                        ctx.drawImage(brokenImg, bx - 55, by - 90, 110, 116);
+                        ctx.globalAlpha = 1;
+                    }
+                }
+
+                if (ab.state === 'healing') {
+                    const pulse = 0.22 + Math.sin(gameState.time * 5) * 0.12;
+                    const grad = ctx.createRadialGradient(bx, by - 30, 5, bx, by - 30, 70);
+                    grad.addColorStop(0, 'rgba(34, 197, 94, ' + (pulse + 0.15) + ')');
+                    grad.addColorStop(1, 'rgba(34, 197, 94, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath(); ctx.arc(bx, by - 30, 70, 0, Math.PI * 2); ctx.fill();
+                }
+
+                if (gameState.shieldFlash && gameState.time < gameState.shieldFlash.until) {
+                    const remain = gameState.shieldFlash.until - gameState.time;
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, Math.min(1, remain / 0.7));
+                    ctx.strokeStyle = '#7dd3fc';
+                    ctx.lineWidth = 5;
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 18;
+                    ctx.beginPath(); ctx.ellipse(bx, by - 30, 75, 90, 0, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+                }
+
+                if (gameState.strikeFlash && gameState.time < gameState.strikeFlash.until) {
+                    const remain = gameState.strikeFlash.until - gameState.time;
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, Math.min(0.55, remain / 0.35 * 0.55));
+                    ctx.fillStyle = gameState.strikeFlash.color;
+                    ctx.beginPath(); ctx.ellipse(bx, by - 30, 80, 95, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            // 7c. HERALD'S NOTICE BOARD -- REPORTER has no separate sprite,
+            // like MUTATOR; posting the real report is this board's trait.
+            ctx.fillStyle = '#2a1d10';
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 2;
+            ctx.fillRect(noticeBoard.x - 30, noticeBoard.y - 22, 60, 44);
+            ctx.strokeRect(noticeBoard.x - 30, noticeBoard.y - 22, 60, 44);
+            ctx.fillStyle = '#a1947c';
+            ctx.font = '5px "Press Start 2P"';
+            ctx.textAlign = 'center';
+            ctx.fillText("HERALD'S", noticeBoard.x, noticeBoard.y - 28);
+            ctx.fillText('NOTICE BOARD', noticeBoard.x, noticeBoard.y - 20);
+            if (gameState.noticeScroll) {
+                const s = gameState.noticeScroll;
+                ctx.fillStyle = '#ead9ad';
+                ctx.fillRect(noticeBoard.x - 24, noticeBoard.y - 14, 48, 28);
+                ctx.strokeStyle = '#6b4a24';
+                ctx.strokeRect(noticeBoard.x - 24, noticeBoard.y - 14, 48, 28);
+                ctx.fillStyle = s.verdict === 'Passed' ? '#166534' : '#7f1d1d';
+                ctx.font = '4px "Press Start 2P"';
+                ctx.fillText(s.verdict, noticeBoard.x, noticeBoard.y - 4);
+                ctx.fillText(s.healed + '/' + s.found + ' healed', noticeBoard.x, noticeBoard.y + 3);
+                ctx.fillText(s.scoreBefore + '->' + s.scoreAfter, noticeBoard.x, noticeBoard.y + 10);
             }
 
             // 8. DCSS DECOR (fountains along the stone path, statues guard gates)
@@ -1402,12 +1560,16 @@
                         }
                     }
                     if (d.agent === 'validator') {
-                        // Validator walks to the house to test patch
+                        // Validator walks to the house to test the patch. NOT
+                        // 'healed' yet -- that presumed success before VALIDATOR
+                        // had actually re-attacked. Real state only changes on
+                        // the real result: monster_defeated or monster_hit below.
                         if (gameState.activeBuilding) {
+                            defenders.healer.patrolState = 'waiting';
                             defenders.validator.targetX = gameState.activeBuilding.x + 60;
                             defenders.validator.targetY = gameState.activeBuilding.y + 40;
                             defenders.validator.patrolState = 'validating_walk';
-                            gameState.activeBuilding.state = 'healed';
+                            gameState.activeBuilding.state = 'validating';
                         }
                     }
                     if (d.agent && defenders[d.agent]) {
@@ -1416,19 +1578,52 @@
                         setTimeout(function() { defenders[d.agent].animState = 'idle'; }, 1200);
                     }
                     break;
+                case 'workflow_step':
+                    if (d.step === 3 && Array.isArray(d.battery_results) && d.battery_results.length) {
+                        // One real re-attack per MUTATOR payload, not a single
+                        // aggregated tick -- staggered so each is a visible beat.
+                        d.battery_results.forEach(function(r, i) {
+                            setTimeout(function() { mutatorStrike(r); }, 350 + i * 480);
+                        });
+                    }
+                    break;
+                case 'monster_hit':
+                    // The patch did not survive re-attack: the house stays
+                    // broken/ruined and flares again, Validator returns.
+                    logTelemetry('system', 'MUTATOR found a surviving bypass -- patch rejected.');
+                    if (gameState.activeBuilding) {
+                        gameState.activeBuilding.state = 'broken';
+                        gameState.strikeFlash = { color: '#ef4444', until: gameState.time + 0.4 };
+                    }
+                    defenders.validator.patrolState = 'waiting';
+                    break;
                 case 'monster_defeated':
                     logTelemetry('system', 'Vulnerability patched: ' + d.vuln);
                     var m = gameState.monsters.find(function(x) { return x.title === d.vuln; });
                     if (m) {
                         m.hp = 0;
                         m.defeated = true;
-                        addExperience(150, 300);
+                        const xpAward = (typeof d.xp === 'number') ? d.xp : m.xp;
+                        addExperience(xpAward, Math.round(xpAward * 1.5));
                         showFloatingText(d.vuln + ' PURGED & FORTIFIED!', '#22c55e', m.x, m.y - 40);
                         setTimeout(function() { gameState.monsters = gameState.monsters.filter(function(x) { return x !== m; }); }, 1200);
                     }
+                    if (gameState.activeBuilding) {
+                        gameState.activeBuilding.state = 'healed';
+                        gameState.shieldFlash = { until: gameState.time + 0.7 };
+                        scholarRecordVictory(xpAwardFor(d));
+                    }
+                    defenders.validator.patrolState = 'waiting';
+                    break;
+                case 'run_complete':
+                    reporterPost(d);
                     break;
             }
         };
+
+        function xpAwardFor(d) {
+            return typeof d.xp === 'number' ? d.xp : 150;
+        }
 
         renderHud();
         requestAnimationFrame(gameLoop);
